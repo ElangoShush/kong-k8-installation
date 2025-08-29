@@ -39,31 +39,27 @@ kubectl -n kong run psql-client --rm -it --image=postgres:15 --restart=Never \
   psql "host=kong-pg-postgresql.kong.svc.cluster.local port=5432 dbname=kong user=kong" \
   -c "select now(), current_user, current_database();"
 
-2) Add the Enterprise License
+# Add the Enterprise License
 
 From the folder containing license.json:
 
 kubectl -n kong create secret generic kong-enterprise-license \
   --from-file=license=./license.json
 
-3) Install Kong Gateway Enterprise
+# Install Kong Gateway Enterprise
 
-Your apps/kong/on-perm/deployment-patch.yaml (HelmChart) configures:
-
-Enterprise image kong/kong-gateway
-
-External Postgres connection
-
-NodePorts for Proxy/Admin/Manager
-
-Migrations enabled
+In the folder containing apps/kong/on-perm/deployment-patch.yaml (HelmChart) configures:
+  1. Enterprise image kong/kong-gateway
+  2. External Postgres connection
+  3. NodePorts for Proxy/Admin/Manager
+  4. Migrations enabled
 
 Apply:
 
 kubectl apply -n kong -k apps/kong/on-perm
 kubectl -n kong rollout status deploy/kong-kong --timeout=5m
 
-First-time DB bootstrap (if you see “Database needs bootstrapping”)
+# First-time DB bootstrap (if you see “Database needs bootstrapping”)
 kubectl -n kong apply -f - <<'EOF'
 apiVersion: batch/v1
 kind: Job
@@ -92,12 +88,12 @@ spec:
           items: [{ key: license, path: license.json }]
 EOF
 
+# Health Check 
 kubectl -n kong logs -f job/kong-ee-bootstrap-once
 kubectl -n kong delete job kong-ee-bootstrap-once
 kubectl -n kong rollout restart deploy/kong-kong
 kubectl -n kong rollout status deploy/kong-kong --timeout=5m
 
-4) Endpoints
 # Manager Ednpoint
 curl -I http://<NODE_PUBLIC_IP>:30516/workspaces
 
