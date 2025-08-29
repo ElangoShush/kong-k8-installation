@@ -15,11 +15,14 @@ spec:
         enabled: true
         servicePort: 443
         nodePort: 32443
+        
     admin:
-      enabled: true
-      type: ClusterIP
+      type: NodePort
       http:
         enabled: true
         servicePort: 8001
+        nodePort: 32081   # pick an open port
       tls:
-        enabled: false
+        enabled: true
+        servicePort: 8444
+        nodePort: 32441   # pick an open port
