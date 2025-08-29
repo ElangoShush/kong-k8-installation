@@ -17,6 +17,7 @@ spec:
         nodePort: 32443
         
     admin:
+      enabled: true
       type: NodePort
       http:
         enabled: true
