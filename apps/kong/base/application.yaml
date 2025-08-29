@@ -1,0 +1,36 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: kong
+  namespace: kong
+spec:
+  chart: kong
+  repo: https://charts.konghq.com
+  version: 2.45.0
+  targetNamespace: kong
+  valuesContent: |-
+    image:
+      repository: kong/kong
+      tag: "3.7"
+    env:
+      database: "off"
+      router_flavor: "expressions"
+      log_level: "info"
+    ingressController:
+      enabled: true
+      installCRDs: true
+      env:
+        kong_admin_tls_skip_verify: "true"
+    proxy:
+      enabled: true
+      type: LoadBalancer
+      http:
+        enabled: true
+        servicePort: 80
+      tls:
+        enabled: true
+        servicePort: 443
+    admin:
+      enabled: false
+    status:
+      enabled: true

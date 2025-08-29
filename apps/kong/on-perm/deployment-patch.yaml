@@ -1,0 +1,25 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: kong
+  namespace: kong
+spec:
+  valuesContent: |-
+    proxy:
+      type: NodePort
+      http:
+        enabled: true
+        servicePort: 80
+        nodePort: 32080
+      tls:
+        enabled: true
+        servicePort: 443
+        nodePort: 32443
+    admin:
+      enabled: true
+      type: ClusterIP
+      http:
+        enabled: true
+        servicePort: 8001
+      tls:
+        enabled: false
