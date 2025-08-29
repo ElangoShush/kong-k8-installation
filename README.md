@@ -1,2 +1,105 @@
-# hudson-apps
-Kustomize configuration for moriarty in kubernetes
+Kong Gateway (Enterprise) + Postgres on Kubernetes (K3s/Rancher HelmController)
+
+This repo installs Kong Gateway Enterprise backed by Postgres and exposes:
+
+Proxy: 32080 (HTTP), 32443 (HTTPS)
+
+Admin API: 32081 (HTTP), 32441 (HTTPS)
+
+Manager UI: 30516 (HTTP), 30952 (HTTPS)
+
+It also includes an overlay to set environment-specific admin_gui_api_url and admin_gui_url without hard-coding IPs in the base config.
+
+Prerequisites
+
+kubectl configured for your cluster (K3s recommended).
+
+Rancher Helm Controller CRDs available (helm.cattle.io/v1).
+
+Namespace:
+
+kubectl create ns kong
+
+
+Kong Enterprise license.json file (do not commit it to git).
+
+1) Install Postgres (Bitnami)
+# From repo root
+kubectl apply -n kong -k apps/postgres/on-perm
+
+# Wait for Postgres
+kubectl -n kong rollout status statefulset/kong-pg-postgresql --timeout=5m
+
+# Inspect
+kubectl -n kong get pods,svc -l app.kubernetes.io/name=postgresql
+
+Quick DB test
+kubectl -n kong run psql-client --rm -it --image=postgres:15 --restart=Never \
+  --env=PGPASSWORD=supersecret-kong -- \
+  psql "host=kong-pg-postgresql.kong.svc.cluster.local port=5432 dbname=kong user=kong" \
+  -c "select now(), current_user, current_database();"
+
+2) Add the Enterprise License
+
+From the folder containing license.json:
+
+kubectl -n kong create secret generic kong-enterprise-license \
+  --from-file=license=./license.json
+
+3) Install Kong Gateway Enterprise
+
+Your apps/kong/on-perm/deployment-patch.yaml (HelmChart) configures:
+
+Enterprise image kong/kong-gateway
+
+External Postgres connection
+
+NodePorts for Proxy/Admin/Manager
+
+Migrations enabled
+
+Apply:
+
+kubectl apply -n kong -k apps/kong/on-perm
+kubectl -n kong rollout status deploy/kong-kong --timeout=5m
+
+First-time DB bootstrap (if you see “Database needs bootstrapping”)
+kubectl -n kong apply -f - <<'EOF'
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kong-ee-bootstrap-once
+spec:
+  backoffLimit: 0
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: bootstrap
+        image: kong/kong-gateway:3.9
+        env:
+        - { name: KONG_DATABASE, value: "postgres" }
+        - { name: KONG_PG_HOST, value: "kong-pg-postgresql.kong.svc.cluster.local" }
+        - { name: KONG_PG_DATABASE, value: "kong" }
+        - { name: KONG_PG_USER, value: "kong" }
+        - { name: KONG_PG_PASSWORD, value: "supersecret-kong" }
+        command: ["sh","-lc","kong migrations bootstrap -v || (echo already bootstrapped; exit 0)"]
+        volumeMounts: [{ name: license, mountPath: /etc/kong }]
+      volumes:
+      - name: license
+        secret:
+          secretName: kong-enterprise-license
+          items: [{ key: license, path: license.json }]
+EOF
+
+kubectl -n kong logs -f job/kong-ee-bootstrap-once
+kubectl -n kong delete job kong-ee-bootstrap-once
+kubectl -n kong rollout restart deploy/kong-kong
+kubectl -n kong rollout status deploy/kong-kong --timeout=5m
+
+4) Endpoints
+# Manager Ednpoint
+curl -I http://<NODE_PUBLIC_IP>:30516/workspaces
+
+# Proxy Endpoint
+curl -I https://<NODE_PUBLIC_IP>:32080/
