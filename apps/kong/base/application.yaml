@@ -6,31 +6,64 @@ metadata:
 spec:
   chart: kong
   repo: https://charts.konghq.com
-  version: 2.45.0
   targetNamespace: kong
   valuesContent: |-
     image:
-      repository: kong/kong
-      tag: "3.7"
+      repository: kong/kong-gateway
+      tag: "3.7.1.3"
+
+    enterprise:
+      enabled: true        # license will be posted via Admin API later
+
     env:
-      database: "off"
-      router_flavor: "expressions"
-      log_level: "info"
-    ingressController:
+      # DB-mode (OAuth2 needs DB)
+      database: "postgres"
+      pg_host: "kong-pg-postgresql.kong.svc.cluster.local"
+      pg_port: 5432
+      pg_user: "kong"
+      pg_password: "supersecret-kong"
+      pg_database: "kong"
+
+      # Bootstrap Manager admin (username = kong_admin)
+      password: "SetA-Strong-Admin-Password"
+
+      # Enable Admin API + Manager listeners
+      admin_listen: "0.0.0.0:8001, 0.0.0.0:8444 ssl"
+      admin_gui_listen: "0.0.0.0:8002, 0.0.0.0:8445 ssl"
+
+      # Internal URLs for Manager
+      admin_gui_api_url: "http://kong-kong-admin.kong.svc.cluster.local:8001"
+      admin_gui_url: "http://kong-kong-manager.kong.svc.cluster.local:8002"
+
+    # Keep Admin/Manager private (ClusterIP) — use port-forward
+    admin:
       enabled: true
-      installCRDs: true
-      env:
-        kong_admin_tls_skip_verify: "true"
-    proxy:
-      enabled: true
-      type: LoadBalancer
+      type: ClusterIP
       http:
         enabled: true
-        servicePort: 80
+        servicePort: 8001
+      tls:
+        enabled: false
+
+    manager:
+      enabled: true
+      type: ClusterIP
+      http:
+        enabled: true
+        servicePort: 8002
+      tls:
+        enabled: false
+
+    # Proxy exposure defaults to ClusterIP here; on-perm overlay will flip to NodePort
+    proxy:
+      type: ClusterIP
+      http:
+        enabled: true
       tls:
         enabled: true
-        servicePort: 443
-    admin:
-      enabled: false
+
     status:
+      enabled: true
+
+    migrations:
       enabled: true

@@ -1,0 +1,12 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: kong-pg
+  namespace: kong
+spec:
+  valuesContent: |-
+    primary:
+      persistence:
+        enabled: true
+        size: 20Gi
+        # storageClass: <your-storage-class>   # optional
