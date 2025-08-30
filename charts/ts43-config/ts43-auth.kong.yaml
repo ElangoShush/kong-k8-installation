@@ -38,15 +38,18 @@ services:
         name: sherlock-api_v2-issue-auth-code_post
         paths:
         - ~/v2/issue_auth_code
-        plugins: 
-          - name: request-transformer
+        plugins:
+          - name: pre-function
             config:
-              add:
-                headers:
-                  - "client_id:${KONG_CLIENT_ID}"
-                  - "client_secret:${KONG_CLIENT_SECRET}"
-                  - "scope:${KONG_SCOPE}"
-                  - "kong_base_url:${KONG_BASE_URL}"
+              access:
+                - |
+                  -- Read body (supports application/x-www-form-urlencoded)
+                  local body = kong.request.get_body() or {}
+                  -- Set dynamic headers to upstream
+                  if body.grant_type then kong.service.request.set_header("grant_type", body.grant_type) end
+                  if body.client_id then kong.service.request.set_header("client_id", body.client_id) end
+                  if body.client_secret then kong.service.request.set_header("client_secret", body.client_secret) end
+                  if body.scope then kong.service.request.set_header("scope", body.scope) end
         regex_priority: 200
         strip_path: false
         service:
