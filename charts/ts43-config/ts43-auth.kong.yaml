@@ -13,7 +13,6 @@ services:
     read_timeout: 60000
     tags: []
     routes:
-      # POST /v2/issue_auth_code
       - id: 82c90817-0bd4-5472-aa79-870d0438732e
         methods:
         - POST
@@ -28,11 +27,18 @@ services:
               global_credentials: true 
               provision_key: sherlock-api_authenticate-ts43-client-v2-authenticate-ts43-client-get
               enable_client_credentials: true 
+          - name: request-transformer
+            config:
+              add:
+                body:
+                  - "client_id:${KONG_CLIENT_ID}"
+                  - "client_secret:${KONG_CLIENT_SECRET}"
+                  - "scope:${KONG_SCOPE}"
         regex_priority: 200
         strip_path: false
-        tags: []
         service:
           id: 83f03359-19f7-5f8d-b8c1-e2c8267ebf83
+
 
       # GET /v2/authenticate_ts43_client
       - id: 2e6acf9f-7892-5cc6-b8a4-39769531bbab
