@@ -1,14 +1,14 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
-namespace: ts43
+namespace: kong
 
 resources:
   - ../base
 
 # Pin/override your image/tag at deploy-time
 images:
-  - name: us-central1-docker.pkg.dev/sherlockapi/hudson/ts43-auth
+  - name: us-central1-docker.pkg.dev/sherlock-004/ts43/ts43-authcode
     newTag: latest  # change to a git SHA/tag you build
 
 patches:

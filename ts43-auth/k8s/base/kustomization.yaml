@@ -3,7 +3,7 @@ kind: Kustomization
 
 # This sets metadata.namespace on all resources below,
 # but does NOT create the Namespace. See namespace.yaml (optional) or create it once: kubectl create ns ts43
-namespace: ts43
+namespace: kong
 
 resources:
   - deployment.yaml

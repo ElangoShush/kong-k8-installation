@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: ts43-auth
-  namespace: ts43
+  namespace: kong
   labels:
     app: ts43-auth
 spec:
@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: api
-          image: us-central1-docker.pkg.dev/sherlockapi/hudson/ts43-auth:latest
+          image: us-central1-docker.pkg.dev/sherlock-004/ts43/ts43-authcode:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
