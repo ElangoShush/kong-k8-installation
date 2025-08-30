@@ -57,3 +57,12 @@ services:
         regex_priority: 200
         strip_path: false
         tags: []
+
+    # Register a client app (Consumer) with client_id / client_secret
+consumers:
+  - username: test-app
+    tags: []
+    oauth2_credentials:
+      - name: test-app
+        client_id: "test"       # <-- set your actual values
+        client_secret: "test"
