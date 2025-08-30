@@ -1,39 +1,51 @@
 _format_version: "3.0"
 _transform: true
-tags:
-  - ts43
-  - sherlock
-
 services:
-  - name: ts43
-    protocol: http
-    host: ts43-auth-backend.ts43.svc.cluster.local
-    port: 80
+  - host: ts43-auth-backend.ts43.svc.cluster.local
+    id: 83f03359-19f7-5f8d-b8c1-e2c8267ebf83
+    name: ts43
     path: /
+    plugins: []
+    protocol: http
+    port: 80
     retries: 3
     connect_timeout: 60000
     write_timeout: 60000
     read_timeout: 60000
-    tags: [ts43, sherlock]
-
+    tags: []
     routes:
       # POST /v2/issue_auth_code
-      - name: sherlock-api_v2-issue-auth-code_post
-        methods: ["POST"]
-        paths: ["/v2/issue_auth_code"]
+      - id: 82c90817-0bd4-5472-aa79-870d0438732e
+        methods:
+        - POST
+        name: sherlock-api_v2-issue-auth-code_post
+        paths:
+        - ~/v2/issue_auth_code$
+        plugins: []
+        regex_priority: 200
         strip_path: false
-        tags: [ts43, sherlock]
+        tags: []
 
       # GET /v2/authenticate_ts43_client
-      - name: sherlock-api_authenticate-ts43-client-v2-authenticate-ts43-client-get
-        methods: ["GET"]
-        paths: ["/v2/authenticate_ts43_client"]
+      - id: 2e6acf9f-7892-5cc6-b8a4-39769531bbab
+        methods:
+        - GET
+        name: sherlock-api_authenticate-ts43-client-v2-authenticate-ts43-client-get
+        paths:
+        - ~/v2/authenticate_ts43_client$
+        plugins: []
+        regex_priority: 200
         strip_path: false
-        tags: [ts43, sherlock]
+        tags: []
 
       # POST /v2/authenticate_ts43_client (challenge)
-      - name: sherlock-api_challenge-ts43-client-v2-authenticate-ts43-client-post
-        methods: ["POST"]
-        paths: ["/v2/authenticate_ts43_client"]
+      - id: f34b2152-b04e-5b80-9d78-8d096ce1f823
+        methods:
+        - POST
+        name: sherlock-api_challenge-ts43-client-v2-authenticate-ts43-client-post
+        paths:
+        - ~/v2/authenticate_ts43_client$
+        plugins: []
+        regex_priority: 200
         strip_path: false
-        tags: [ts43, sherlock]
+        tags: []

@@ -99,3 +99,29 @@ curl -I http://<NODE_PUBLIC_IP>:30516/workspaces
 
 # Proxy Endpoint
 curl -I https://<NODE_PUBLIC_IP>:32080/
+
+Deploy TS 43 Endpoint to KONG:
+# dry-run
+helm upgrade --install ts43-config ./apps/charts/ts43-config -n kong --debug --dry-run
+
+# apply & wait
+helm upgrade --install ts43-config ./apps/charts/ts43-config -n kong --atomic --wait --timeout=15m
+
+
+
+# Deploy Redis
+kubectl apply -k ts43-redis/k8s/on-perm
+kubectl -n ts43 get pods,svc | grep ts43-redis
+
+
+# docker build and push TS43 Authe code Image to sherlock-004:
+cd kong-k8-installation/ts43-auth
+sudo docker buildx build \
+  --platform linux/amd64 \
+  -t us-central1-docker.pkg.dev/sherlock-004/ts43/ts43-authcode:latest \
+  --push .
+
+# Deploy TS43 AUth Code 
+cd kong-k8-installation/
+kubectl apply -k ts43-auth/k8s/on-perm
+kubectl -n ts43 get deploy,po,svc | grep ts43-auth

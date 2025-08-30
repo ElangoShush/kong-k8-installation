@@ -1,7 +1,0 @@
-apiVersion: v2
-name: ts43-config
-version: 0.1.0
-description: Sync TS43 OpenAPI-derived Kong config using decK
-type: application
-annotations:
-  artifacthub.io/containsSecurityUpdates: "false"
