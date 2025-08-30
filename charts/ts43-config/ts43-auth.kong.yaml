@@ -1,7 +1,7 @@
 _format_version: "3.0"
 _transform: true
 services:
-  - host: ts43-auth-backend.ts43.svc.cluster.local
+  - host: 10.43.239.88
     id: 83f03359-19f7-5f8d-b8c1-e2c8267ebf83
     name: ts43
     path: /
@@ -20,7 +20,14 @@ services:
         name: sherlock-api_v2-issue-auth-code_post
         paths:
         - ~/v2/issue_auth_code
-        plugins: []
+        plugins:
+          - name: oauth2
+            config:
+              scopes:
+              - sherlockapiresource/write
+              global_credentials: true 
+              provision_key: sherlock-api_authenticate-ts43-client-v2-authenticate-ts43-client-get
+              enable_client_credentials: true 
         regex_priority: 200
         strip_path: false
         tags: []
@@ -34,14 +41,7 @@ services:
         name: sherlock-api_authenticate-ts43-client-v2-authenticate-ts43-client-get
         paths:
         - ~/v2/authenticate_ts43_client
-        plugins:
-          - name: oauth2
-            config:
-              scopes:
-              - sherlockapiresource/write
-              global_credentials: true 
-              provision_key: sherlock-api_authenticate-ts43-client-v2-authenticate-ts43-client-get
-              enable_client_credentials: true 
+        plugins: []
         regex_priority: 200
         strip_path: false
         tags: []
