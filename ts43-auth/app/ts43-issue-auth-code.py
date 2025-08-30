@@ -31,6 +31,15 @@ REQ_TIMEOUT = float(os.getenv("HTTP_TIMEOUT_SECONDS", "10"))
 
 app = FastAPI(title="ts43-issue-auth-code", version="1.0.0")
 
+class HealthzFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        # Drop access logs that include GET /healthz
+        msg = record.getMessage()
+        return 'GET /healthz ' not in msg and 'GET /healthz HTTP' not in msg
+
+# Attach to uvicorn access logger
+uvicorn_access = logging.getLogger("uvicorn.access")
+uvicorn_access.addFilter(HealthzFilter())
 
 def get_client_credentials_token(
     kong_base_url: str,
