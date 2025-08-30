@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: ts43-redis
-  namespace: ts43
+  namespace: kong
 spec:
   serviceName: ts43-redis
   replicas: 1

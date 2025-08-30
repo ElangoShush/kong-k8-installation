@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: redis-config
-  namespace: ts43
+  namespace: kong
 data:
   redis.conf: |
     # Minimal hardening + persistence
