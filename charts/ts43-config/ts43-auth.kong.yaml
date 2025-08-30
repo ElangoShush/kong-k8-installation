@@ -5,7 +5,6 @@ services:
     id: 83f03359-19f7-5f8d-b8c1-e2c8267ebf83
     name: ts43
     path: /
-    plugins: []
     protocol: http
     port: 80
     retries: 3
@@ -49,3 +48,23 @@ services:
         regex_priority: 200
         strip_path: false
         tags: []
+
+
+      # Token endpoint (handled by the oauth2 plugin inside Kong)
+      - name: sherlock-oauth2-token
+        methods: ["POST"]
+        paths: ["/oauth2/token"]
+        strip_path: false
+
+      # Enable OAuth2 on this service (Client Credentials only)
+    plugins:
+      - name: oauth2
+        config:
+          enable_client_credentials: true
+          enable_authorization_code: false
+          enable_implicit_grant: false
+          enable_password_grant: false
+          global_credentials: false
+          token_expiration: 3600              # seconds
+          mandatory_scope: false              # CC flow doesn’t require scopes
+          hide_credentials: true
