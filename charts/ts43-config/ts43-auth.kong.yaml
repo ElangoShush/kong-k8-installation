@@ -1,7 +1,7 @@
 _format_version: "3.0"
 _transform: true
 services:
-  - host: 10.43.239.88
+  - host: 10.43.95.105
     id: 83f03359-19f7-5f8d-b8c1-e2c8267ebf83
     name: ts43
     path: /
@@ -50,6 +50,14 @@ services:
                   if body.client_id then kong.service.request.set_header("client_id", body.client_id) end
                   if body.client_secret then kong.service.request.set_header("client_secret", body.client_secret) end
                   if body.scope then kong.service.request.set_header("scope", body.scope) end
+                  -- Capture what client used to reach Kong
+                  local host = kong.request.get_forwarded_host()
+                  local port = kong.request.get_forwarded_port()
+
+                  -- Send it upstream as a header
+                  if host and port then
+                    kong.service.request.set_header("kong_base_url", "https://" .. host .. ":" .. port)
+                  end
         regex_priority: 200
         strip_path: false
         service:
