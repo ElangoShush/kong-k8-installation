@@ -26,6 +26,7 @@ services:
             scopes:
             - sherlockapiresource/write
             global_credentials: true 
+            provision_key: sherlock-api_v2-issue-auth-code_post
             enable_client_credentials: true 
         regex_priority: 200
         strip_path: false
