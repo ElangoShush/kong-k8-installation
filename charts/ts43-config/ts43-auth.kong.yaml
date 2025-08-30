@@ -19,7 +19,7 @@ services:
         - POST
         name: sherlock-api_v2-issue-auth-code_post
         paths:
-        - ~/v2/issue_auth_code$
+        - ~/v2/issue_auth_code
         plugins:
         - name: oauth2
           config:
@@ -38,7 +38,7 @@ services:
         - GET
         name: sherlock-api_authenticate-ts43-client-v2-authenticate-ts43-client-get
         paths:
-        - ~/v2/authenticate_ts43_client$
+        - ~/v2/authenticate_ts43_client
         plugins: []
         regex_priority: 200
         strip_path: false
@@ -50,7 +50,7 @@ services:
         - POST
         name: sherlock-api_challenge-ts43-client-v2-authenticate-ts43-client-post
         paths:
-        - ~/v2/authenticate_ts43_client$
+        - ~/v2/authenticate_ts43_client
         plugins: []
         regex_priority: 200
         strip_path: false
