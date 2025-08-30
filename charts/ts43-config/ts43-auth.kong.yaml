@@ -16,7 +16,7 @@ services:
       - id: fdc49bc0-8190-4057-b495-db4694bcd892
         methods:
         - POST
-        name: sherlock-api_v2-issue-auth-code_post
+        name: oauth2-token
         paths:
         - oauth2/token
         plugins:
