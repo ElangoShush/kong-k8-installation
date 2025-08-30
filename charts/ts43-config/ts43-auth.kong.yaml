@@ -42,7 +42,7 @@ services:
           - name: request-transformer
             config:
               add:
-                body:
+                headers:
                   - "client_id:${KONG_CLIENT_ID}"
                   - "client_secret:${KONG_CLIENT_SECRET}"
                   - "scope:${KONG_SCOPE}"
