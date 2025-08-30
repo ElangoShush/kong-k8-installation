@@ -20,14 +20,7 @@ services:
         name: sherlock-api_v2-issue-auth-code_post
         paths:
         - ~/v2/issue_auth_code
-        plugins:
-        - name: oauth2
-          config:
-            scopes:
-            - sherlockapiresource/write
-            global_credentials: true 
-            provision_key: sherlock-api_v2-issue-auth-code_post
-            enable_client_credentials: true 
+        plugins: []
         regex_priority: 200
         strip_path: false
         tags: []
@@ -39,7 +32,14 @@ services:
         name: sherlock-api_authenticate-ts43-client-v2-authenticate-ts43-client-get
         paths:
         - ~/v2/authenticate_ts43_client
-        plugins: []
+        plugins:
+          - name: oauth2
+            config:
+              scopes:
+              - sherlockapiresource/write
+              global_credentials: true 
+              provision_key: sherlock-api_authenticate-ts43-client-v2-authenticate-ts43-client-get
+              enable_client_credentials: true 
         regex_priority: 200
         strip_path: false
         tags: []
