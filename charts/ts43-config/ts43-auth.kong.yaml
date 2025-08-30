@@ -27,14 +27,6 @@ services:
               global_credentials: true 
               provision_key: sherlock-api_authenticate-ts43-client-v2-authenticate-ts43-client-get
               enable_client_credentials: true 
-          - name: request-transformer
-            config:
-              add:
-                body:
-                  - "client_id:${KONG_CLIENT_ID}"
-                  - "client_secret:${KONG_CLIENT_SECRET}"
-                  - "scope:${KONG_SCOPE}"
-                  - "kong_base_url:${KONG_BASE_URL}"
         regex_priority: 200
         strip_path: false
         service:
@@ -46,7 +38,15 @@ services:
         name: sherlock-api_v2-issue-auth-code_post
         paths:
         - ~/v2/issue_auth_code
-        plugins: []
+        plugins: 
+          - name: request-transformer
+            config:
+              add:
+                body:
+                  - "client_id:${KONG_CLIENT_ID}"
+                  - "client_secret:${KONG_CLIENT_SECRET}"
+                  - "scope:${KONG_SCOPE}"
+                  - "kong_base_url:${KONG_BASE_URL}"
         regex_priority: 200
         strip_path: false
         service:
