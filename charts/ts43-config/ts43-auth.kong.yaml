@@ -1,0 +1,39 @@
+_format_version: "3.0"
+_transform: true
+tags:
+  - ts43
+  - sherlock
+
+services:
+  - name: ts43
+    protocol: http
+    host: ts43-auth-backend.ts43.svc.cluster.local
+    port: 80
+    path: /
+    retries: 3
+    connect_timeout: 60000
+    write_timeout: 60000
+    read_timeout: 60000
+    tags: [ts43, sherlock]
+
+    routes:
+      # POST /v2/issue_auth_code
+      - name: sherlock-api_v2-issue-auth-code_post
+        methods: ["POST"]
+        paths: ["/v2/issue_auth_code"]
+        strip_path: false
+        tags: [ts43, sherlock]
+
+      # GET /v2/authenticate_ts43_client
+      - name: sherlock-api_authenticate-ts43-client-v2-authenticate-ts43-client-get
+        methods: ["GET"]
+        paths: ["/v2/authenticate_ts43_client"]
+        strip_path: false
+        tags: [ts43, sherlock]
+
+      # POST /v2/authenticate_ts43_client (challenge)
+      - name: sherlock-api_challenge-ts43-client-v2-authenticate-ts43-client-post
+        methods: ["POST"]
+        paths: ["/v2/authenticate_ts43_client"]
+        strip_path: false
+        tags: [ts43, sherlock]
