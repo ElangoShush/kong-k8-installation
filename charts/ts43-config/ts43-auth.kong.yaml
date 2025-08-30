@@ -13,12 +13,12 @@ services:
     read_timeout: 60000
     tags: []
     routes:
-      - id: 82c90817-0bd4-5472-aa79-870d0438732e
+      - id: fdc49bc0-8190-4057-b495-db4694bcd892
         methods:
         - POST
         name: sherlock-api_v2-issue-auth-code_post
         paths:
-        - ~/v2/issue_auth_code
+        - oauth2/token
         plugins:
           - name: oauth2
             config:
@@ -35,6 +35,18 @@ services:
                   - "client_secret:${KONG_CLIENT_SECRET}"
                   - "scope:${KONG_SCOPE}"
                   - "kong_base_url:${KONG_BASE_URL}"
+        regex_priority: 200
+        strip_path: false
+        service:
+          id: 83f03359-19f7-5f8d-b8c1-e2c8267ebf83
+
+      - id: 82c90817-0bd4-5472-aa79-870d0438732e
+        methods:
+        - POST
+        name: sherlock-api_v2-issue-auth-code_post
+        paths:
+        - ~/v2/issue_auth_code
+        plugins: []
         regex_priority: 200
         strip_path: false
         service:
