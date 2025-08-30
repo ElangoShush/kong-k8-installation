@@ -18,7 +18,7 @@ services:
         - POST
         name: oauth2-token
         paths:
-        - oauth2/token
+        - /oauth2/token
         plugins:
           - name: oauth2
             config:
