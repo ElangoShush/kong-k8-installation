@@ -34,6 +34,7 @@ services:
                   - "client_id:${KONG_CLIENT_ID}"
                   - "client_secret:${KONG_CLIENT_SECRET}"
                   - "scope:${KONG_SCOPE}"
+                  - "kong_base_url:${KONG_BASE_URL}"
         regex_priority: 200
         strip_path: false
         service:
