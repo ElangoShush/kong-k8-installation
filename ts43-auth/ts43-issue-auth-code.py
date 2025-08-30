@@ -104,10 +104,11 @@ if __name__ == "__main__":
     CLIENT_ID = os.getenv("KONG_CLIENT_ID")
     CLIENT_SECRET = os.getenv("KONG_CLIENT_SECRET")
     SCOPE = os.getenv("KONG_SCOPE")
+    
 
     # For your NodePort 32443 with self-signed cert, keep verify_tls=False
     token_info = get_client_credentials_token(KONG, CLIENT_ID, CLIENT_SECRET, scope=SCOPE, verify_tls=False)
     print("token_info:", json.dumps(token_info, indent=2))
-
+    logger.info(f"token_info: {token_info}")
     # status, body, req_id = call_ts43_issue_auth_code_with_token(KONG, token_info["access_token"], verify_tls=False)
     # print("issue_auth_code:", status, json.dumps(body, indent=2), "request_id:", req_id)
