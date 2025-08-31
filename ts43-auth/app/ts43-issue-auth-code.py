@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 import os
-import json
 import logging
 from typing import Optional, Dict, Any
+from urllib.parse import parse_qs
 
 import requests
 from fastapi import FastAPI, Request, HTTPException
@@ -15,15 +15,7 @@ import uvicorn
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
 log = logging.getLogger("ts43-issue-auth-code")
 
-# -----------------------
-# Config (env fallbacks)
-# -----------------------
-DEFAULT_KONG_BASE = os.getenv("KONG_BASE_URL", "")
-DEFAULT_CLIENT_ID = os.getenv("KONG_CLIENT_ID", "")
-DEFAULT_CLIENT_SECRET = os.getenv("KONG_CLIENT_SECRET", "")
-DEFAULT_SCOPE = os.getenv("KONG_SCOPE", "")
-
-# For self-signed / NodePort TLS you may want to disable verification.
+# For self-signed / NodePort TLS you may want to disable verification (NOT for prod)
 VERIFY_TLS = os.getenv("VERIFY_TLS", "false").lower() in ("1", "true", "yes")
 
 # HTTP timeouts
@@ -31,15 +23,17 @@ REQ_TIMEOUT = float(os.getenv("HTTP_TIMEOUT_SECONDS", "10"))
 
 app = FastAPI(title="ts43-issue-auth-code", version="1.0.0")
 
+
 class HealthzFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
-        # Drop access logs that include GET /healthz
         msg = record.getMessage()
         return 'GET /healthz ' not in msg and 'GET /healthz HTTP' not in msg
 
-# Attach to uvicorn access logger
+
+# Attach to uvicorn access logger (hide /healthz noise)
 uvicorn_access = logging.getLogger("uvicorn.access")
 uvicorn_access.addFilter(HealthzFilter())
+
 
 def get_client_credentials_token(
     kong_base_url: str,
@@ -59,7 +53,7 @@ def get_client_credentials_token(
     if not client_id or not client_secret:
         raise ValueError("client_id and client_secret are required")
 
-    url = kong_base_url.rstrip("/") + "/oauth2/token"
+    url = kong_base_url.rstrip("/") + "/oauth2/token/oauth2/token"
     data = {
         "grant_type": "client_credentials",
         "client_id": client_id,
@@ -75,7 +69,6 @@ def get_client_credentials_token(
             log.error("Token request failed: %s %s", resp.status_code, resp.text)
             raise HTTPException(status_code=resp.status_code, detail=resp.text)
         payload = resp.json()
-        # Basic validation
         if "access_token" not in payload:
             log.error("Token response missing 'access_token': %s", payload)
             raise HTTPException(status_code=502, detail="Invalid token response from Kong")
@@ -90,39 +83,147 @@ def healthz():
     return {"status": "ok"}
 
 
+def _flatten_form(form) -> Dict[str, str]:
+    """Convert Starlette FormData to dict (take first value per key)."""
+    out: Dict[str, str] = {}
+    for key in form.keys():
+        vals = form.getlist(key)
+        out[key] = (vals[0] if vals else "").strip()
+    return out
+
+
 @app.post("/v2/issue_auth_code")
 async def issue_auth_code(req: Request):
     """
-    This endpoint expects (from Kong request-transformer) in the **JSON body**:
-      - client_id
-      - client_secret
-      - scope            (optional)
-      - kong_base_url    (your Kong admin/public base that hosts /oauth2/token)
-    If not present, falls back to env vars (KONG_CLIENT_ID, etc).
-
-    It returns the token payload from Kong’s /oauth2/token.
+    Accepts JSON or application/x-www-form-urlencoded.
+    Values are taken from headers first (set by Kong), then fall back to body.
+    Expected:
+      - kong_base_url  (required)
+      - client_id      (required)
+      - client_secret  (required)
+      - scope          (optional)
+      - grant_type     (optional; validated if present)
     """
+    # --- Debug logging (careful in prod; secrets!) ---
+    print("=== HEADERS ===")
+    for k, v in req.headers.items():
+        print(f"{k}: {v}")
+
+    body_bytes = await req.body()
+    raw_text = body_bytes.decode("utf-8", errors="replace")
+    print("=== BODY (raw) ===")
+    print(raw_text if raw_text else "<empty>")
+
+    # --- Parse body (best-effort) ---
+    content_type = (req.headers.get("content-type") or "").lower()
+    parsed: Dict[str, Any] = {}
     try:
-        body = await req.json()
-    except Exception:
-        body = {}
+        if "application/json" in content_type:
+            parsed = await req.json()
+        elif "application/x-www-form-urlencoded" in content_type:
+            # Requires python-multipart; otherwise falls into except below.
+            form = await req.form()
+            parsed = _flatten_form(form)
+        else:
+            try:
+                parsed = await req.json()
+            except Exception:
+                qs = parse_qs(raw_text, keep_blank_values=True)
+                parsed = {k: (v[0] if isinstance(v, list) and v else "") for k, v in qs.items()}
+    except Exception as e:
+        log.warning(f"Body parse failed ({e}); proceeding with empty body")
+        parsed = {}
 
-    # Read from body first (Kong request-transformer adds these), else env
-    kong_base = (body.get("kong_base_url") or DEFAULT_KONG_BASE).strip()
-    client_id = (body.get("client_id") or DEFAULT_CLIENT_ID).strip()
-    client_secret = (body.get("client_secret") or DEFAULT_CLIENT_SECRET).strip()
-    scope = (body.get("scope") or DEFAULT_SCOPE).strip() or None
+    # --- Prefer headers, then fallback to parsed body ---
+    # Headers are case-insensitive; FastAPI/Starlette normalizes them for get()
+    grant_type   = (req.headers.get("grant_type") or parsed.get("grant_type") or "").strip()
+    client_id    = (req.headers.get("client_id") or parsed.get("client_id") or "").strip()
+    client_secret= (req.headers.get("client_secret") or parsed.get("client_secret") or "").strip()
+    scope        = (req.headers.get("scope") or parsed.get("scope") or "").strip() or None
+    kong_base    = (req.headers.get("kong_base_url") or parsed.get("kong_base_url") or "").strip()
 
+    # --- Logging (mask secret in logs) ---
+    log.info(f"client_id: {client_id}")
+    log.info(f"client_secret: {client_secret[:2] + '***' if client_secret else ''}")
+    log.info(f"scope: {scope}")
     log.info(f"kong_base: {kong_base}")
+
+    # --- Validate ---
+    if not kong_base:
+        raise HTTPException(status_code=400, detail="kong_base_url missing")
+    if not client_id or not client_secret:
+        raise HTTPException(status_code=400, detail="client_id / client_secret missing")
+    if grant_type and grant_type != "client_credentials":
+        raise HTTPException(status_code=400, detail="unsupported_grant_type")
+
+    # --- Call Kong /oauth2/token ---
+    token = get_client_credentials_token(
+        kong_base_url=kong_base,
+        client_id=client_id,
+        client_secret=client_secret,
+        scope=scope,
+        verify_tls=VERIFY_TLS,
+        timeout_sec=REQ_TIMEOUT,
+    )
+    return JSONResponse(token)
+
+    """
+    Accepts JSON or application/x-www-form-urlencoded.
+
+    Expected fields (must be in request):
+      - kong_base_url  (required)
+      - client_id      (required)
+      - client_secret  (required)
+      - scope          (optional)
+
+    Returns the token payload from Kong’s /oauth2/token.
+    """
+    # Log headers
+    print("=== HEADERS ===")
+    for k, v in req.headers.items():
+        print(f"{k}: {v}")
+
+    # Log raw body
+    body_bytes = await req.body()
+    raw_text = body_bytes.decode("utf-8", errors="replace")
+    print("=== BODY (raw) ===")
+    print(raw_text if raw_text else "<empty>")
+
+    # Parse body
+    content_type = (req.headers.get("content-type") or "").lower()
+    parsed: Dict[str, Any] = {}
+
+    try:
+        if "application/json" in content_type:
+            parsed = await req.json()
+        elif "application/x-www-form-urlencoded" in content_type:
+            form = await req.form()
+            parsed = _flatten_form(form)
+        else:
+            try:
+                parsed = await req.json()
+            except Exception:
+                qs = parse_qs(raw_text, keep_blank_values=True)
+                parsed = {k: (v[0] if isinstance(v, list) and v else "") for k, v in qs.items()}
+    except Exception as e:
+        log.warning(f"Body parse failed ({e}); proceeding with empty body")
+        parsed = {}
+
+    kong_base = (parsed.get("kong_base_url") or "").strip()
+    client_id = (parsed.get("client_id") or "").strip()
+    client_secret = (parsed.get("client_secret") or "").strip()
+    scope = (parsed.get("scope") or "").strip() or None
+
+    
     log.info(f"client_id: {client_id}")
     log.info(f"client_secret: {client_secret}")
     log.info(f"scope: {scope}")
-    
-    
+    log.info(f"kong_base: {kong_base}")
+
     if not kong_base:
-        raise HTTPException(status_code=400, detail="kong_base_url missing (and KONG_BASE_URL not set)")
+        raise HTTPException(status_code=400, detail="kong_base_url missing")
     if not client_id or not client_secret:
-        raise HTTPException(status_code=400, detail="client_id / client_secret missing (and env not set)")
+        raise HTTPException(status_code=400, detail="client_id / client_secret missing")
 
     token = get_client_credentials_token(
         kong_base_url=kong_base,
@@ -133,12 +234,8 @@ async def issue_auth_code(req: Request):
         timeout_sec=REQ_TIMEOUT,
     )
 
-    # You can extend here to call a downstream `/v2/issue_auth_code` backend with the token if needed.
-    # For now, we just return the token payload.
     return JSONResponse(token)
 
 
 if __name__ == "__main__":
-    # Run directly: python3 ts43-issue-auth-code.py
-    # Binds to 0.0.0.0:8080 so K8s Service can reach it
     uvicorn.run("ts43-issue-auth-code:app", host="0.0.0.0", port=int(os.getenv("PORT", "8080")), reload=False)
