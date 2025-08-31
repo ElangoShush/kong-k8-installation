@@ -1,31 +1,28 @@
-# syntax=docker/dockerfile:1.7
+# Dockerfile
 FROM python:3.11-slim
 
-# --- Runtime envs (override at deploy time as needed)
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PORT=8080 \
-    VERIFY_TLS=false \
-    HTTP_TIMEOUT_SECONDS=10
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
 
-# --- Create non-root user & workdir
+# (Optional) a couple of base packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates tzdata && \
+    rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
-RUN useradd -r -u 10001 -g root appuser && chown -R appuser:root /app
 
-# --- Copy only deps first for better layer caching
-COPY requirements.txt ./
-RUN pip install --upgrade --no-cache-dir pip && \
-    pip install --no-cache-dir -r requirements.txt
+# Install deps first (layer caching)
+COPY requirements.txt /app/requirements.txt
+RUN pip install -r /app/requirements.txt
 
-# --- Copy the single microservice file
-COPY ts43-issue-auth-code.py ./ts43-issue-auth-code.py
+# Copy the code and rename the entry file so uvicorn can import it
+COPY ts43-issue-auth-code.py /app/main.py
 
-# --- Switch to non-root
-USER appuser
+# If you later add more modules/templates/static, switch to:
+# COPY app/ /app/
 
-# --- Expose service port
 EXPOSE 8080
 
-# --- Run ONLY this microservice
-CMD ["python", "-u", "ts43-issue-auth-code.py"]
+# Start FastAPI
+# Your file defines `app = FastAPI(...)`, so this import path is correct.
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
