@@ -61,7 +61,7 @@ def get_client_credentials_token(
 
     # Correct path and preserve scheme from kong_base_url
     url = kong_base_url.rstrip("/") + "/oauth2/token/oauth2/token"  
-
+    headers = {"X-Forwarded-Proto": "https"}
     data = {
         "grant_type": "client_credentials",
         "client_id": client_id,
@@ -72,7 +72,8 @@ def get_client_credentials_token(
 
     log.info(f"Requesting token from: {url}")
     try:
-        resp = requests.post(url, data=data, timeout=timeout_sec, verify=verify_tls)
+        
+        resp = requests.post(url, data=data, headers=headers,timeout=timeout_sec, verify=verify_tls)
         if resp.status_code >= 400:
             log.error("Token request failed: %s %s", resp.status_code, resp.text)
             raise HTTPException(status_code=resp.status_code, detail=resp.text)
