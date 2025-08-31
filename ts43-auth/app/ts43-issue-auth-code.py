@@ -53,7 +53,7 @@ def get_client_credentials_token(
     if not client_id or not client_secret:
         raise ValueError("client_id and client_secret are required")
 
-    url = kong_base_url.rstrip("/") + "/oauth2/token/oauth2/token"
+    url = "https://" + kong_base_url.rstrip("/") + "/oauth2/token/oauth2/token"
     data = {
         "grant_type": "client_credentials",
         "client_id": client_id,
@@ -140,7 +140,7 @@ async def issue_auth_code(req: Request):
     client_id    = (req.headers.get("client_id") or parsed.get("client_id") or "").strip()
     client_secret= (req.headers.get("client_secret") or parsed.get("client_secret") or "").strip()
     scope        = (req.headers.get("scope") or parsed.get("scope") or "").strip() or None
-    kong_base    = (req.headers.get("kong_base_url") or parsed.get("kong_base_url") or "").strip()
+    kong_base    = (req.headers.get("host") or parsed.get("host") or "").strip()
 
     # --- Logging (mask secret in logs) ---
     log.info(f"client_id: {client_id}")
@@ -183,7 +183,7 @@ async def issue_auth_code(req: Request):
     for k, v in req.headers.items():
         print(f"{k}: {v}")
 
-    # Log raw body
+    # Log raw bodys
     body_bytes = await req.body()
     raw_text = body_bytes.decode("utf-8", errors="replace")
     print("=== BODY (raw) ===")
