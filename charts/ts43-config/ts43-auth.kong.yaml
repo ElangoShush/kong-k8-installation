@@ -27,6 +27,7 @@ services:
               global_credentials: true 
               provision_key: sherlock-api_authenticate-ts43-client-v2-authenticate-ts43-client-get
               enable_client_credentials: true 
+              accept_http_if_already_terminated: true
         regex_priority: 200
         strip_path: false
         service:
