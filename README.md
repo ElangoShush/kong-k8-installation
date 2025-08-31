@@ -100,28 +100,56 @@ curl -I http://<NODE_PUBLIC_IP>:30516/workspaces
 # Proxy Endpoint
 curl -I https://<NODE_PUBLIC_IP>:32080/
 
-Deploy TS 43 Endpoint to KONG:
-# dry-run
-helm upgrade --install ts43-config ./apps/charts/ts43-config -n kong --debug --dry-run
-
-# apply & wait
-helm upgrade --install ts43-config ./apps/charts/ts43-config -n kong --atomic --wait --timeout=15m
-
 
 
 # Deploy Redis
 kubectl apply -k ts43-redis/k8s/on-perm
-kubectl -n ts43 get pods,svc | grep ts43-redis
+kubectl -n kong get pods,svc | grep ts43-redis
 
 
 # docker build and push TS43 Authe code Image to sherlock-004:
-cd kong-k8-installation/ts43-auth
+cd kong-k8-installation/ts43-auth/app
+
 sudo docker buildx build \
   --platform linux/amd64 \
-  -t us-central1-docker.pkg.dev/sherlock-004/ts43/ts43-authcode:latest \
+  -t us-central1-docker.pkg.dev/sherlock-004/ts43/ts43-authcode:v2 \
   --push .
 
-# Deploy TS43 AUth Code 
+# Deploy TS43 AUth Code  Image
 cd kong-k8-installation/
 kubectl apply -k ts43-auth/k8s/on-perm
-kubectl -n ts43 get deploy,po,svc | grep ts43-auth
+kubectl -n kong get deploy,po,svc | grep ts43-auth
+
+
+# check the Kong Ingress 
+kubectl -n kong get ingress ts43-auth
+
+you should get like this:
+    NAME        CLASS   HOSTS   ADDRESS        PORTS   AGE
+    ts43-auth   kong    *       10.43.239.88   80      50s
+
+
+Deploy TS 43 Endpoint to KONG:
+# dry-run
+helm upgrade --install ts43-config ./charts/ts43-config -n kong --debug --dry-run
+
+# apply & wait
+helm upgrade --install ts43-config ./charts/ts43-config -n kong
+
+
+# Check the Service type 
+kubectl -n kong get svc ts43-auth-backend
+
+NAME                TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)   AGE
+ts43-auth-backend   ClusterIP   10.43.95.105   <none>        80/TCP    5h8m
+
+10.43.95.105  -> this is ip for the service ( which is via this can reach the authcode microservice)
+
+
+
+
+
+
+# TOOLS:
+1. Kong runtime log:
+    kubectl logs kong-kong-666dc66497-xdjpt --follow -n kong
