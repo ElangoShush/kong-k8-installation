@@ -589,17 +589,4 @@ services:
     tags: [sherlock]
     service:
           id: 83f03359-19f7-5f8d-b8c1-e2c8267ebf84
-  - id: f34b2152-b04e-5b80-9d78-8d096ce1f823
-    methods:
-    - POST
-    name: sherlock-api_challenge-ts43-client-v2-authenticate-ts43-client-post
-    paths:
-    - ~/v2/authenticate_ts43_client$
-    plugins: []
-    regex_priority: 200
-    strip_path: false
-    tags: [sherlock]
-    service:
-          id: 83f03359-19f7-5f8d-b8c1-e2c8267ebf84
-  tags: [sherlock]
 upstreams: []
