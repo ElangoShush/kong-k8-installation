@@ -1,6 +1,6 @@
 _format_version: "3.0"
 services:
-- host: http://34.54.169.57/
+- host: 34.54.169.57
   id: 83f03359-19f7-5f8d-b8c1-e2c8267ebf84
   name: sherlock-api
   path: /
