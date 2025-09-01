@@ -22,10 +22,15 @@ VERIFY_TLS = os.getenv("VERIFY_TLS", "false").lower() in ("1", "true", "yes")
 REQ_TIMEOUT = float(os.getenv("HTTP_TIMEOUT_SECONDS", "10"))
 
 # in-cluster Kong proxy by default (can override with OAUTH_BASE_URL if needed)
+# KONG_INTERNAL_BASE = os.getenv(
+#     "OAUTH_BASE_URL",
+#     "http://kong-kong-proxy.kong.svc.cluster.local:80"
+# ).strip() 
+# change to HTTPS for security error comes from kong plugin
 KONG_INTERNAL_BASE = os.getenv(
     "OAUTH_BASE_URL",
-    "http://kong-kong-proxy.kong.svc.cluster.local:80"
-).strip() 
+    "https://kong-kong-proxy.kong.svc.cluster.local:443"
+).strip()
 
 app = FastAPI(title="ts43-issue-auth-code", version="1.0.0")
 
