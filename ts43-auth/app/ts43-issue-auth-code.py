@@ -71,6 +71,7 @@ def get_client_credentials_token(
         data["scope"] = scope
 
     log.info(f"Requesting token from: {url}")
+    log.info(f"headers: {headers}")
     try:
         
         resp = requests.post(url, data=data, headers=headers,timeout=timeout_sec, verify=verify_tls)

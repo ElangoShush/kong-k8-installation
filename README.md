@@ -112,7 +112,7 @@ cd kong-k8-installation/ts43-auth/app
 
 sudo docker buildx build \
   --platform linux/amd64 \
-  -t us-central1-docker.pkg.dev/sherlock-004/ts43/ts43-authcode:v2 \
+  -t us-central1-docker.pkg.dev/sherlock-004/ts43/ts43-authcode:v5 \
   --push .
 
 # Deploy TS43 AUth Code  Image
@@ -135,7 +135,7 @@ helm upgrade --install ts43-config ./charts/ts43-config -n kong --debug --dry-ru
 
 # apply & wait
 helm upgrade --install ts43-config ./charts/ts43-config -n kong
-
+helm upgrade --install ts43-config ./charts/Sherlock -n kong
 
 # Check the Service type 
 kubectl -n kong get svc ts43-auth-backend
@@ -152,4 +152,11 @@ ts43-auth-backend   ClusterIP   10.43.95.105   <none>        80/TCP    5h8m
 
 # TOOLS:
 1. Kong runtime log:
-    kubectl logs kong-kong-666dc66497-xdjpt --follow -n kong
+    kubectl -n kong exec -it deploy/kong-kong -c proxy -- sh
+    cat /tmp/kong_requests.log
+
+2 rolling restart kong deployment
+     kubectl -n kong rollout restart deployment kong-kong
+
+3 COnvert OPENAPI to Kong File
+     deck file openapi2kong --spec openapi.json --output-file sherlock.kong.yaml
