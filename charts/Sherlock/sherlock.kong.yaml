@@ -96,6 +96,10 @@ services:
   plugins: []
   port: 80
   protocol: http
+  connect_timeout: 60000
+  write_timeout: 60000
+  read_timeout: 60000
+  tags: [sherlock]
   routes:
   - id: d87d54ab-27bb-5977-976c-053569739aae
     methods:
