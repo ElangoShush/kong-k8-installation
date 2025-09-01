@@ -594,3 +594,11 @@ services:
     service:
           id: 83f03359-19f7-5f8d-b8c1-e2c8267ebf84
 upstreams: []
+
+consumers:
+  - username: test-app
+    tags: []
+    oauth2_credentials:
+      - name: test-app
+        client_id: "test"       # <-- set your actual values
+        client_secret: "test"
