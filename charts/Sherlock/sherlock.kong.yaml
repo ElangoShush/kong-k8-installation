@@ -24,7 +24,7 @@ services:
           scopes:
           - sherlockapiresource/write
           global_credentials: true 
-          provision_key: sherlock-api_authenticate-ts43-client-v2-authenticate-ts43-client-get
+          provision_key: OAuth Token Dispencer
           enable_client_credentials: true 
           accept_http_if_already_terminated: true
     regex_priority: 200
@@ -583,18 +583,6 @@ services:
     name: sherlock-api_authenticate-user-v0-authenticate-user-get
     paths:
     - ~/v0/authenticate_user$
-    plugins: []
-    regex_priority: 200
-    strip_path: false
-    tags: [sherlock]
-    service:
-          id: 83f03359-19f7-5f8d-b8c1-e2c8267ebf84
-  - id: 2e6acf9f-7892-5cc6-b8a4-39769531bbab
-    methods:
-    - GET
-    name: sherlock-api_authenticate-ts43-client-v2-authenticate-ts43-client-get
-    paths:
-    - ~/v2/authenticate_ts43_client$
     plugins: []
     regex_priority: 200
     strip_path: false
