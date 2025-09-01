@@ -1,7 +1,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: Sherlocks-sync
+  name: sherlocks-sync
   annotations:
     "helm.sh/hook": post-install,post-upgrade
     "helm.sh/hook-weight": "0"
@@ -33,4 +33,4 @@ spec:
       volumes:
         - name: state
           configMap:
-            name: Sherlock-state
+            name: sherlock-state
