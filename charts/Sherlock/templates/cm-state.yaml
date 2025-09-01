@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ts43-config-state
+data:
+  {{ .Values.stateFileName }}: |
+{{- tpl (.Files.Get .Values.stateFileName) . | nindent 4 }}
