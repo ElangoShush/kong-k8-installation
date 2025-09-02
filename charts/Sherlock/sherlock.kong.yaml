@@ -524,6 +524,7 @@ services:
     plugins: 
       - name: oauth2
         config:
+          provision_key: OAuth-Token-Dispenser-Key
           scopes:
           - sherlockapiresource/write 
           accept_http_if_already_terminated: true
