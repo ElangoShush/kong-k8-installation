@@ -16,6 +16,4 @@ spec:
             - name: KONG_REAL_IP_RECURSIVE
               value: "on"
             - name: KONG_ADMIN_GUI_URL
-              valueFrom:
-                fieldRef:
-                  fieldPath: status.hostIP
+              value: "http://34.61.21.100:30516"
