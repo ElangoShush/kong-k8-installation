@@ -130,6 +130,7 @@ services:
       - name: oauth2 # Same plugin config as the token endpoint
         config:
           global_credentials: true
+          provision_key: OAuth Token Dispencer
           enable_client_credentials: true
           enable_authorization_code: true
           token_expiration: 3600
