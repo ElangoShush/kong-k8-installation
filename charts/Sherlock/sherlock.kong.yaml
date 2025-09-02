@@ -26,6 +26,7 @@ services:
           global_credentials: true 
           provision_key: OAuth Token Dispencer
           enable_client_credentials: true 
+          enable_authorization_code: true
           accept_http_if_already_terminated: true
     regex_priority: 200
     strip_path: false
@@ -86,92 +87,28 @@ services:
     regex_priority: 200
     strip_path: false
     tags: [TS43]
-  
-- host: camera-auth-service.kong.svc.cluster.local
-  id: 04e4404f-e7ad-4c80-a7ca-fbe4fb348e42
-  name: camera
-  path: /
-  protocol: http
-  port: 80
-  retries: 3
-  connect_timeout: 60000
-  write_timeout: 60000
-  read_timeout: 60000
-  tags: [camera]  
-  routes:
-  # NEW OAUTH2 TOKEN ENDPOINT MANAGED BY KONG
-  - id: 1b9d7c6e-2f3a-4b5d-8c6a-7b8d9e0f1a2b # New Unique ID
-    methods:
-    - POST
-    name: camera-oauth2-token
-    paths:
-    - /oauth2/token
-    plugins:
-      - name: oauth2
-        config:
-          global_credentials: true
-          provision_key: OAuth Token Dispencer
-          enable_client_credentials: true
-          enable_authorization_code: true
-          token_expiration: 3600
-          auth_header_name: Authorization
-          accept_http_if_already_terminated: true
-    strip_path: false
-    tags: [camera]
-  # NEW OAUTH2 AUTHORIZATION ENDPOINT MANAGED BY KONG
-  - id: 2c8e6f5d-1a2b-3c4d-5e6f-7a8b9c0d1e2f # New Unique ID
+  # ADDED: New /oauth2/authorize route for user login
+  - id: a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6
     methods:
     - GET
     - POST
-    name: camera-oauth2-authorize
+    name: oauth2-authorize
     paths:
     - /oauth2/authorize
     plugins:
-      - name: oauth2 # Same plugin config as the token endpoint
+      - name: oauth2
         config:
+          scopes:
+          - sherlockapiresource/write
           global_credentials: true
-          provision_key: OAuth Token Dispencer
-          enable_client_credentials: true
+          provision_key: OAuth-Token-Dispenser-Key # Must match the token endpoint
           enable_authorization_code: true
-          token_expiration: 3600
-          auth_header_name: Authorization
+          # ADDED: These settings enable Kong's built-in login page for testing
+          anonymous: "00000000-0000-0000-0000-000000000000" # A placeholder anonymous consumer
+          run_on_preflight: true
           accept_http_if_already_terminated: true
     strip_path: false
-    tags: [camera]
-
-  - id: 3106e0d9-a190-4762-9d28-2295ca78b708
-    methods:
-    - POST
-    name: camera-token
-    paths:
-    - /token
-    plugins: []
-    regex_priority: 200
-    strip_path: false
-    tags: [camera]
-
-  - id: 83a989ff-3d7e-495c-ac1c-3951b69a2f82
-    methods:
-    - GET
-    name: camera-GET-authorizer
-    paths:
-    - /authorizer
-    plugins: []
-    regex_priority: 200
-    strip_path: false
-    tags: [camera]
-
-  - id: b724dbd6-c95a-4d26-8491-61abf4706534
-    methods:
-    - POST
-    name: camera-POST-authorizer
-    paths:
-    - /authorizer
-    plugins: []
-    regex_priority: 200
-    strip_path: false
-    tags: [camera]
-
+    tags: [TS43]
 - host: 34.54.169.57
   id: 83f03359-19f7-5f8d-b8c1-e2c8267ebf84
   name: sherlock-api
@@ -586,7 +523,14 @@ services:
     name: sherlock-api_number-verification-verify-number-number-verification-v0-verify-number-post
     paths:
     - ~/number-verification/v0/verify-number$
-    plugins: []
+    plugins: 
+      - name: oauth2
+        config:
+          scopes:
+          - sherlockapiresource/write 
+          global_credentials: true
+          run_on_preflight: true
+          accept_http_if_already_terminated: true
     regex_priority: 200
     strip_path: false
     tags: [sherlock]
@@ -685,3 +629,5 @@ consumers:
       - name: test-app
         client_id: "test"       # <-- set your actual values
         client_secret: "test"
+        redirect_uris: 
+          - https://oauth.pstmn.io/v1/callback
