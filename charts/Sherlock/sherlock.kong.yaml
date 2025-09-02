@@ -97,7 +97,6 @@ services:
     - /oauth2/authorize
     plugins:
       - name: oauth2
-        run_on_preflight: true 
         config:
           scopes:
           - sherlockapiresource/write
@@ -524,9 +523,7 @@ services:
     - ~/number-verification/v0/verify-number$
     plugins: 
       - name: oauth2
-        run_on_preflight: true # <-- MOVED outside of the config block
         config:
-          # <-- SIMPLIFIED: A protected API only needs to know the required scopes.
           scopes:
           - sherlockapiresource/write 
           accept_http_if_already_terminated: true
