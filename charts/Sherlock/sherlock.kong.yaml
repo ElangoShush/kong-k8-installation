@@ -3,6 +3,7 @@ services:
 # ADDED: A new service dedicated to handling the OAuth2 flow with plugins
 - name: oauth-provider
   id: 1a1a1a1a-2b2b-3c3c-4d4d-5e5e5e5e5e5e
+  host: 127.0.0.1 
   tags: [oauth]
   # NOTE: No host is defined. This service only uses plugins.
   routes:
@@ -106,26 +107,6 @@ services:
     - ~/v2/authenticate_ts43_client
     plugins: []
     regex_priority: 200
-    strip_path: false
-    tags: [TS43]
-  # ADDED: New /oauth2/authorize route for user login
-  - id: a1b2c3d4-e5f6-a7b8-c9d0-e1f2a3b4c5d6
-    methods:
-    - GET
-    - POST
-    name: oauth2-authorize
-    paths:
-    - /oauth2/authorize
-    plugins:
-      - name: oauth2
-        config:
-          scopes:
-          - sherlockapiresource/write
-          global_credentials: true
-          provision_key: OAuth-Token-Dispenser-Key 
-          enable_authorization_code: true
-          anonymous: "00000000-0000-0000-0000-000000000000" 
-          accept_http_if_already_terminated: true
     strip_path: false
     tags: [TS43]
 - host: 34.54.169.57
