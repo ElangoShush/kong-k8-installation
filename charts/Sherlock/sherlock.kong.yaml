@@ -24,9 +24,9 @@ services:
           scopes:
           - sherlockapiresource/write
           global_credentials: true 
-          provision_key: OAuth Token Dispencer
-          enable_client_credentials: true 
-          enable_authorization_code: true
+          provision_key: OAuth-Token-Dispenser-Key # A unique key for this flow
+          enable_client_credentials: true
+          enable_authorization_code: true # This enables the flow
           accept_http_if_already_terminated: true
     regex_priority: 200
     strip_path: false
@@ -97,15 +97,14 @@ services:
     - /oauth2/authorize
     plugins:
       - name: oauth2
+        run_on_preflight: true 
         config:
           scopes:
           - sherlockapiresource/write
           global_credentials: true
-          provision_key: OAuth-Token-Dispenser-Key # Must match the token endpoint
+          provision_key: OAuth-Token-Dispenser-Key 
           enable_authorization_code: true
-          # ADDED: These settings enable Kong's built-in login page for testing
-          anonymous: "00000000-0000-0000-0000-000000000000" # A placeholder anonymous consumer
-          run_on_preflight: true
+          anonymous: "00000000-0000-0000-0000-000000000000" 
           accept_http_if_already_terminated: true
     strip_path: false
     tags: [TS43]
@@ -525,11 +524,11 @@ services:
     - ~/number-verification/v0/verify-number$
     plugins: 
       - name: oauth2
+        run_on_preflight: true # <-- MOVED outside of the config block
         config:
+          # <-- SIMPLIFIED: A protected API only needs to know the required scopes.
           scopes:
           - sherlockapiresource/write 
-          global_credentials: true
-          run_on_preflight: true
           accept_http_if_already_terminated: true
     regex_priority: 200
     strip_path: false
