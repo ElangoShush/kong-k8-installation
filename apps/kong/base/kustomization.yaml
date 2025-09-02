@@ -6,9 +6,7 @@ resources:
 
 secretGenerator:
   - name: kong-enterprise-license
-    namespace: kong
     files:
-      - license=../../../license.json
-
+      - secrets/license.json
 generatorOptions:
   disableNameSuffixHash: true
