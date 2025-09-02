@@ -88,6 +88,38 @@ services:
     regex_priority: 200
     strip_path: false
     tags: [TS43]
+  - id: 3106e0d9-a190-4762-9d28-2295ca78b708
+    methods:
+    - POST
+    name: camera-token
+    paths:
+    - /token
+    plugins: []
+    regex_priority: 200
+    strip_path: false
+    tags: [camera]
+
+  - id: 83a989ff-3d7e-495c-ac1c-3951b69a2f82
+    methods:
+    - GET
+    name: camera-GET-authorizer
+    paths:
+    - /authorizer
+    plugins: []
+    regex_priority: 200
+    strip_path: false
+    tags: [camera]
+
+  - id: b724dbd6-c95a-4d26-8491-61abf4706534
+    methods:
+    - POST
+    name: camera-POST-authorizer
+    paths:
+    - /authorizer
+    plugins: []
+    regex_priority: 200
+    strip_path: false
+    tags: [camera]
 
 - host: 34.54.169.57
   id: 83f03359-19f7-5f8d-b8c1-e2c8267ebf84
