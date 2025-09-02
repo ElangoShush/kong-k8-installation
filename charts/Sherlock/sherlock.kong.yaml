@@ -87,7 +87,7 @@ services:
     strip_path: false
     tags: [TS43]
   
-- host: camera-auth-backend.kong.svc.cluster.local
+- host: camera-auth-service.kong.svc.cluster.local
   id: 04e4404f-e7ad-4c80-a7ca-fbe4fb348e42
   name: camera
   path: /
