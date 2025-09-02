@@ -15,3 +15,7 @@ spec:
               value: "X-Forwarded-For"
             - name: KONG_REAL_IP_RECURSIVE
               value: "on"
+            - name: KONG_ADMIN_GUI_URL
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.hostIP
