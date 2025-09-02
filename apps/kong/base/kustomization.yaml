@@ -3,3 +3,12 @@ kind: Kustomization
 
 resources:
 - application.yaml
+
+secretGenerator:
+  - name: kong-enterprise-license
+    namespace: kong
+    files:
+      - license=../../../license.json
+
+generatorOptions:
+  disableNameSuffixHash: true

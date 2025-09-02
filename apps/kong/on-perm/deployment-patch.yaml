@@ -1,29 +1,17 @@
-apiVersion: helm.cattle.io/v1
-kind: HelmChart
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: kong
+  name: kong-kong
   namespace: kong
 spec:
-  valuesContent: |-
-    proxy:
-      type: NodePort
-      http:
-        enabled: true
-        servicePort: 80
-        nodePort: 32080
-      tls:
-        enabled: true
-        servicePort: 443
-        nodePort: 32443
-        
-    admin:
-      enabled: true
-      type: NodePort
-      http:
-        enabled: true
-        servicePort: 8001
-        nodePort: 32081   # pick an open port
-      tls:
-        enabled: true
-        servicePort: 8444
-        nodePort: 32441   # pick an open port
+  template:
+    spec:
+      containers:
+        - name: proxy
+          env:
+            - name: KONG_TRUSTED_IPS
+              value: "0.0.0.0/0,::/0"
+            - name: KONG_REAL_IP_HEADER
+              value: "X-Forwarded-For"
+            - name: KONG_REAL_IP_RECURSIVE
+              value: "on"

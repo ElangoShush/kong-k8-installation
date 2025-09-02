@@ -11,8 +11,7 @@ spec:
     # === Enterprise image ===
     image:
       repository: kong/kong-gateway
-      tag: "3.9"             # pick a specific enterprise tag you want
-
+      tag: "3.9"             # choose n-1 kong release 
     # === Enable Enterprise & supply license in license.json ===
     enterprise:
       enabled: true
@@ -38,16 +37,7 @@ spec:
       admin_gui_api_url: "http://kong-kong-admin.kong.svc.cluster.local:8001"
       admin_gui_url: "http://kong-kong-manager.kong.svc.cluster.local:8002"
 
-    # Keep Admin/Manager private (ClusterIP) — use port-forward
-    admin:
-      enabled: true
-      type: ClusterIP
-      http:
-        enabled: true
-        servicePort: 8001
-      tls:
-        enabled: false
-
+    # Proxy Endpoint
     proxy:
       type: NodePort
       http:
@@ -58,23 +48,33 @@ spec:
         enabled: true
         servicePort: 443
         nodePort: 32443
-        
+   
+    #kong Admin API - Only Kong Env & System Changes 
+    admin:
+      enabled: true
+      type: NodePort
+      http:
+        enabled: true
+        servicePort: 8001
+        nodePort: 32081
+      tls:
+        enabled: true
+        servicePort: 8444
+        nodePort: 32441
+
+    # Kong Admin UI     
     manager:
       enabled: true
-      type: ClusterIP
-      http:
+      type: NodePort
+      http: 
         enabled: true
         servicePort: 8002
+        nodePort: 30516
       tls:
-        enabled: false
+        enabled: true 
+        servicePort: 8445
+        nodePort: 30952
 
-    # Proxy exposure defaults to ClusterIP here; on-perm overlay will flip to NodePort
-    proxy:
-      type: ClusterIP
-      http:
-        enabled: true
-      tls:
-        enabled: true
 
     status:
       enabled: true
