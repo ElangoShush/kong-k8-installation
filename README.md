@@ -44,7 +44,11 @@ kubectl -n kong run psql-client --rm -it --image=postgres:15 --restart=Never \
 # Add the Enterprise License
 
 From the folder containing license.json:
+cd kong-k8-installation
+kubectl -n kong create secret generic kong-enterprise-license \
+  --from-file=license=./license.json
 
+check the value of secret:
 kubectl -n kong create secret generic kong-enterprise-license \
   --from-file=license=./license.json
 
@@ -59,42 +63,36 @@ In the folder containing apps/kong/on-perm/deployment-patch.yaml (HelmChart) con
 Apply:
 
 kubectl apply -n kong -k apps/kong/on-perm
-kubectl -n kong rollout status deploy/kong-kong --timeout=5m
 
-# First-time DB bootstrap (if you see “Database needs bootstrapping”)
-kubectl -n kong apply -f - <<'EOF'
-apiVersion: batch/v1
-kind: Job
-metadata:
-  name: kong-ee-bootstrap-once
-spec:
-  backoffLimit: 0
-  template:
-    spec:
-      restartPolicy: Never
-      containers:
-      - name: bootstrap
-        image: kong/kong-gateway:3.9
-        env:
-        - { name: KONG_DATABASE, value: "postgres" }
-        - { name: KONG_PG_HOST, value: "kong-pg-postgresql.kong.svc.cluster.local" }
-        - { name: KONG_PG_DATABASE, value: "kong" }
-        - { name: KONG_PG_USER, value: "kong" }
-        - { name: KONG_PG_PASSWORD, value: "supersecret-kong" }
-        command: ["sh","-lc","kong migrations bootstrap -v || (echo already bootstrapped; exit 0)"]
-        volumeMounts: [{ name: license, mountPath: /etc/kong }]
-      volumes:
-      - name: license
-        secret:
-          secretName: kong-enterprise-license
-          items: [{ key: license, path: license.json }]
-EOF
+CHeck for Ports 
+[ansible@kong-onperm-cluster-01 kong-k8-installation]$ kubectl -n kong get svc
+NAME                           TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)                         AGE
+kong-kong-admin                NodePort    10.43.46.61    <none>        8001:32081/TCP,8444:32441/TCP   3d10h
+kong-kong-manager              NodePort    10.43.149.20   <none>        8002:30516/TCP,8445:30952/TCP   3d10h
+kong-kong-metrics              ClusterIP   10.43.190.71   <none>        10255/TCP,10254/TCP             3d10h
+kong-kong-proxy                NodePort    10.43.239.88   <none>        80:32080/TCP,443:32443/TCP      3d10h
+kong-kong-validation-webhook   ClusterIP   10.43.4.204    <none>        443/TCP                         3d10h
+kong-pg-postgresql             ClusterIP   10.43.40.105   <none>        5432/TCP                        3d11h
+kong-pg-postgresql-hl          ClusterIP   None           <none>        5432/TCP                        3d11h
+ts43-auth-backend              ClusterIP   10.43.95.105   <none>        80/TCP                          2d10h
 
-# Health Check 
-kubectl -n kong logs -f job/kong-ee-bootstrap-once
-kubectl -n kong delete job kong-ee-bootstrap-once
-kubectl -n kong rollout restart deploy/kong-kong
-kubectl -n kong rollout status deploy/kong-kong --timeout=5m
+Check the status of pods
+[ansible@kong-onperm-cluster-01 kong-k8-installation]$ kubectl get pods -n kong
+NAME                           READY   STATUS      RESTARTS   AGE
+helm-install-kong-g4kx6        0/1     Completed   0          7h18m
+helm-install-kong-pg-gtpgq     0/1     Completed   0          3d12h
+kong-ee-bootstrap-once-k6h98   0/1     Completed   0          110m
+kong-kong-5b5c7cd4c8-pnqxr     2/2     Running     0          80m
+kong-pg-postgresql-0           1/1     Running     0          3d12h
+ts43-auth-86bbf4f95f-2q8dl     1/1     Running     0          9h
+ts43-auth-86bbf4f95f-84qj8     1/1     Running     0          9h
+ts43-redis-0                   1/1     Running     0          2d11h
+
+check kong version:
+ kubectl -n kong exec deploy/kong-kong -c proxy -- kong version
+
+ check Kong Licenses:
+ kubectl -n kong exec deploy/kong-kong -c proxy -- printenv KONG_LICENSE_DATA | head -c 120; echo
 
 # Manager Ednpoint
 curl -I http://<NODE_PUBLIC_IP>:30516/workspaces
@@ -110,7 +108,7 @@ kubectl -n kong get pods,svc | grep ts43-redis
 
 
 # docker build and push TS43 Authe code Image to sherlock-004:
-cd kong-k8-installation/ts43-auth/app
+cd kong-k8-installation/services/ts43-auth/app
 
 sudo docker buildx build \
   --platform linux/amd64 \
@@ -118,17 +116,23 @@ sudo docker buildx build \
   --push .
 
 # Deploy TS43 AUth Code  Image
-cd kong-k8-installation/
+cd kong-k8-installation/services
 kubectl apply -k ts43-auth/k8s/on-perm
 kubectl -n kong get deploy,po,svc | grep ts43-auth
 
 
-# check the Kong Ingress 
-kubectl -n kong get ingress ts43-auth
+# docker build and push Camera  Image to sherlock-004:
+cd kong-k8-installation/services/camera-auth/app
 
-you should get like this:
-    NAME        CLASS   HOSTS   ADDRESS        PORTS   AGE
-    ts43-auth   kong    *       10.43.239.88   80      50s
+sudo docker buildx build \
+  --platform linux/amd64 \
+  -t us-central1-docker.pkg.dev/sherlock-004/ts43/camera-auth:v1 \
+  --push .
+
+# Deploy Camera Image
+cd kong-k8-installation/services
+kubectl apply -k camera-auth/k8s/on-perm
+kubectl -n kong get deploy,po,svc | grep ts43-auth
 
 
 Deploy TS 43 Endpoint to KONG:
@@ -138,15 +142,9 @@ helm upgrade --install ts43-config ./charts/ts43-config -n kong --debug --dry-ru
 # apply & wait
 helm upgrade --install ts43-config ./charts/Sherlock -n kong 
 
-# Check the Service type 
-kubectl -n kong get svc ts43-auth-backend
-
-NAME                TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)   AGE
-ts43-auth-backend   ClusterIP   10.43.95.105   <none>        80/TCP    5h8m
-
-10.43.95.105  -> this is ip for the service ( which is via this can reach the authcode microservice)
-
-
+# In the KONG UI , for gateway service and route
+  http://34.61.21.100:30516/default/services
+  http://34.61.21.100:30516/default/routes
 
 
 
@@ -163,3 +161,10 @@ ts43-auth-backend   ClusterIP   10.43.95.105   <none>        80/TCP    5h8m
 
 3 COnvert OPENAPI to Kong File
      deck file openapi2kong --spec openapi.json --output-file sherlock.kong.yaml
+
+
+
+#troubleshoot:
+Why kong shows OSS version not Enterprise:
+ kubectl -n kong get helmchart.helm.cattle.io kong -o yaml | sed -n '1,160p'
+    There is no image: or enterprise: keys in .spec.valuesContent, so its dfault to OSS free version. 
