@@ -1,5 +1,47 @@
 _format_version: "3.0"
 services:
+# ADDED: A new service dedicated to handling the OAuth2 flow with plugins
+- name: oauth-provider
+  id: 1a1a1a1a-2b2b-3c3c-4d4d-5e5e5e5e5e5e
+  tags: [oauth]
+  # NOTE: No host is defined. This service only uses plugins.
+  routes:
+  # Route for the token endpoint
+  - name: oauth-provider-token
+    id: 6f6f6f6f-7a7a-8b8b-9c9c-1d1d1d1d1d1d
+    paths:
+    - /oauth2/token
+    methods:
+    - POST
+    plugins:
+      - name: oauth2
+        config:
+          scopes:
+          - sherlockapiresource/write
+          global_credentials: true 
+          provision_key: OAuth-Token-Dispenser-Key
+          enable_client_credentials: true
+          enable_authorization_code: true
+          accept_http_if_already_terminated: true
+  # Route for the authorization endpoint (with Kong's built-in login page)
+  - name: oauth-provider-authorize
+    id: 2e2e2e2e-3f3f-4a4a-5b5b-6c6c6c6c6c6c
+    paths:
+    - /oauth2/authorize
+    methods:
+    - GET
+    - POST
+    plugins:
+      - name: oauth2
+        config:
+          scopes:
+          - sherlockapiresource/write
+          global_credentials: true
+          provision_key: OAuth-Token-Dispenser-Key 
+          enable_authorization_code: true
+          anonymous: "00000000-0000-0000-0000-000000000000" 
+          accept_http_if_already_terminated: true
+          
 - host: ts43-auth-backend.kong.svc.cluster.local
   id: 83f03359-19f7-5f8d-b8c1-e2c8267ebf83
   name: ts43
@@ -12,27 +54,6 @@ services:
   read_timeout: 60000
   tags: [TS43]
   routes:
-  - id: fdc49bc0-8190-4057-b495-db4694bcd892
-    methods:
-    - POST
-    name: oauth2-token
-    paths:
-    - /oauth2/token
-    plugins:
-      - name: oauth2
-        config:
-          scopes:
-          - sherlockapiresource/write
-          global_credentials: true 
-          provision_key: OAuth-Token-Dispenser-Key # A unique key for this flow
-          enable_client_credentials: true
-          enable_authorization_code: true # This enables the flow
-          accept_http_if_already_terminated: true
-    regex_priority: 200
-    strip_path: false
-    tags: [TS43]
-    service:
-      id: 83f03359-19f7-5f8d-b8c1-e2c8267ebf83
   - id: 82c90817-0bd4-5472-aa79-870d0438732e
     methods:
     - POST
