@@ -2,7 +2,9 @@ Kong Gateway (Enterprise) + Postgres on Kubernetes (K3s/Rancher HelmController)
 
 This repo installs Kong Gateway Enterprise backed by Postgres and exposes:
 
+Kong Is Exposed on HTTP and HTTPS Ports
 Proxy: 32080 (HTTP), 32443 (HTTPS)
+  TS 43 Plugin connect to KONG via HTTPS but certificate will be verified at KONG VERIFY_TLS @ts43-issue-auth-code.py line number 19.
 
 Admin API: 32081 (HTTP), 32441 (HTTPS)
 
@@ -112,7 +114,7 @@ cd kong-k8-installation/ts43-auth/app
 
 sudo docker buildx build \
   --platform linux/amd64 \
-  -t us-central1-docker.pkg.dev/sherlock-004/ts43/ts43-authcode:v5 \
+  -t us-central1-docker.pkg.dev/sherlock-004/ts43/ts43-authcode:v9 \
   --push .
 
 # Deploy TS43 AUth Code  Image
@@ -134,8 +136,7 @@ Deploy TS 43 Endpoint to KONG:
 helm upgrade --install ts43-config ./charts/ts43-config -n kong --debug --dry-run
 
 # apply & wait
-helm upgrade --install ts43-config ./charts/ts43-config -n kong
-helm upgrade --install ts43-config ./charts/Sherlock -n kong
+helm upgrade --install ts43-config ./charts/Sherlock -n kong 
 
 # Check the Service type 
 kubectl -n kong get svc ts43-auth-backend
@@ -144,6 +145,8 @@ NAME                TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)   AGE
 ts43-auth-backend   ClusterIP   10.43.95.105   <none>        80/TCP    5h8m
 
 10.43.95.105  -> this is ip for the service ( which is via this can reach the authcode microservice)
+
+
 
 
 
