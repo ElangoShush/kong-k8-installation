@@ -99,6 +99,44 @@ services:
   read_timeout: 60000
   tags: [camera]  
   routes:
+  # NEW OAUTH2 TOKEN ENDPOINT MANAGED BY KONG
+  - id: 1b9d7c6e-2f3a-4b5d-8c6a-7b8d9e0f1a2b # New Unique ID
+    methods:
+    - POST
+    name: camera-oauth2-token
+    paths:
+    - /oauth2/token
+    plugins:
+      - name: oauth2
+        config:
+          global_credentials: true
+          enable_client_credentials: true
+          enable_authorization_code: true
+          token_expiration: 3600
+          auth_header_name: Authorization
+          accept_http_if_already_terminated: true
+    strip_path: false
+    tags: [camera]
+  # NEW OAUTH2 AUTHORIZATION ENDPOINT MANAGED BY KONG
+  - id: 2c8e6f5d-1a2b-3c4d-5e6f-7a8b9c0d1e2f # New Unique ID
+    methods:
+    - GET
+    - POST
+    name: camera-oauth2-authorize
+    paths:
+    - /oauth2/authorize
+    plugins:
+      - name: oauth2 # Same plugin config as the token endpoint
+        config:
+          global_credentials: true
+          enable_client_credentials: true
+          enable_authorization_code: true
+          token_expiration: 3600
+          auth_header_name: Authorization
+          accept_http_if_already_terminated: true
+    strip_path: false
+    tags: [camera]
+    
   - id: 3106e0d9-a190-4762-9d28-2295ca78b708
     methods:
     - POST
