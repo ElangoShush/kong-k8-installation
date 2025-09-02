@@ -17,3 +17,5 @@ spec:
               value: "on"
             - name: KONG_ADMIN_GUI_URL
               value: "http://34.61.21.100:30516"
+            - name: KONG_ADMIN_GUI_API_URL
+              value: "http://34.61.21.100:32081"
