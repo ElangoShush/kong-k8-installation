@@ -110,6 +110,7 @@ services:
       - name: oauth2
         config:
           global_credentials: true
+          provision_key: OAuth Token Dispencer
           enable_client_credentials: true
           enable_authorization_code: true
           token_expiration: 3600
@@ -136,7 +137,7 @@ services:
           accept_http_if_already_terminated: true
     strip_path: false
     tags: [camera]
-    
+
   - id: 3106e0d9-a190-4762-9d28-2295ca78b708
     methods:
     - POST
