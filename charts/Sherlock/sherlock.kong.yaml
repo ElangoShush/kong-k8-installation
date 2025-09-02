@@ -527,6 +527,9 @@ services:
           provision_key: OAuth-Token-Dispenser-Key
           scopes:
           - sherlockapiresource/write 
+          global_credentials: true 
+          enable_authorization_code: true 
+          enable_client_credentials: true
           accept_http_if_already_terminated: true
     regex_priority: 200
     strip_path: false
