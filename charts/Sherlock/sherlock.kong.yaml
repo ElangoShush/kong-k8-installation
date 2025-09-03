@@ -23,6 +23,74 @@ services:
       id: 2e2e2e2e-3f3f-4a4a-5b5b-6c6c6c6c6c6c
       paths: [ /oauth2/authorize ]
       methods: [ GET, POST ]
+      plugins:
+      - name: serverless-functions          # or "pre-function" to make api call 
+        ordering:
+          before:
+            access:
+              - oauth2
+        config:
+          access:
+            - |
+              local req = kong.request
+              local cjson = require "cjson.safe"
+              local http  = require "resty.http"
+
+              -- read login_hint (form or query)
+              local body = req.get_body() or {}
+              local login_hint = body["login_hint"] or req.get_query_arg("login_hint")
+              if not login_hint or login_hint == "" then
+                return kong.response.exit(400, {
+                  error = "invalid_request",
+                  error_description = "login_hint is required"
+                })
+              end
+
+              -- derive client IP (prefers X-Forwarded-For)
+              local ip = kong.client.get_forwarded_ip() or kong.client.get_ip() or "0.0.0.0"
+
+              -- call your auth service
+              local httpc = http.new()
+              httpc:set_timeout(2000) -- 2s; tune as needed
+              local res, err = httpc:request_uri("http://34.54.169.57/v0/authenticate_user", {
+                method = "GET",
+                query  = {
+                  identifier   = "ABC12345",
+                  carrierName  = "lab",
+                  customerName = "Bank1",
+                  msisdn       = login_hint,
+                  ipAddress    = ip
+                }
+              })
+
+              if not res then
+                return kong.response.exit(502, {
+                  error = "upstream_unreachable",
+                  details = err
+                })
+              end
+
+              if res.status ~= 200 then
+                return kong.response.exit(401, {
+                  error = "login_denied",
+                  details = res.body
+                })
+              end
+
+              -- optional: enforce JSON flag from your service
+              local ok = true
+              local data = cjson.decode(res.body)
+              if data and (data.success == false or data.authenticated == false) then
+                ok = false
+              end
+              if not ok then
+                return kong.response.exit(401, {
+                  error = "login_denied",
+                  details = data
+                })
+              end
+
+              -- pass through; oauth2 will now issue the code
 
     # /oauth2/token (POST)
     - name: oauth-provider-token
