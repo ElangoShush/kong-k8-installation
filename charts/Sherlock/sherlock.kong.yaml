@@ -65,8 +65,6 @@ services:
     regex_priority: 200
     strip_path: false
     tags: [TS43]
-    service:
-        id: de1643db-2ca0-4011-b967-8df7f845d07b
 
 - host: ts43-auth-backend.kong.svc.cluster.local
   id: 83f03359-19f7-5f8d-b8c1-e2c8267ebf83
