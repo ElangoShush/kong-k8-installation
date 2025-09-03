@@ -45,7 +45,7 @@ services:
 
 - host: ts43-eke-aaa-cookie.kong.svc.cluster.local
   id: de1643db-2ca0-4011-b967-8df7f845d07b
-  name: ts43
+  name: ts43-cookie
   path: /
   protocol: http
   port: 80
@@ -54,10 +54,23 @@ services:
   write_timeout: 60000
   read_timeout: 60000
   tags: [TS43]
+  routes:
+  - id: f34b2152-b04e-5b80-9d78-8d096ce1f823
+    methods:
+    - POST
+    name: sherlock-api_challenge-ts43-client-v2-authenticate-ts43-client-post
+    paths:
+    - ~/v2/authenticate_ts43_client
+    plugins: []
+    regex_priority: 200
+    strip_path: false
+    tags: [TS43]
+    service:
+        id: de1643db-2ca0-4011-b967-8df7f845d07b
 
 - host: ts43-auth-backend.kong.svc.cluster.local
   id: 83f03359-19f7-5f8d-b8c1-e2c8267ebf83
-  name: ts43
+  name: ts43-auth
   path: /
   protocol: http
   port: 80
@@ -111,18 +124,7 @@ services:
     tags: [TS43]
 
       # POST /v2/authenticate_ts43_client (challenge)
-  - id: f34b2152-b04e-5b80-9d78-8d096ce1f823
-    methods:
-    - POST
-    name: sherlock-api_challenge-ts43-client-v2-authenticate-ts43-client-post
-    paths:
-    - ~/v2/authenticate_ts43_client
-    plugins: []
-    regex_priority: 200
-    strip_path: false
-    tags: [TS43]
-    service:
-        id: de1643db-2ca0-4011-b967-8df7f845d07b
+  
 - host: 34.54.169.57
   id: 83f03359-19f7-5f8d-b8c1-e2c8267ebf84
   name: sherlock-api
