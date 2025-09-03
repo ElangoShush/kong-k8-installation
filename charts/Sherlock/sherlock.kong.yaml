@@ -24,11 +24,7 @@ services:
       paths: [ /oauth2/authorize ]
       methods: [ GET, POST ]
       plugins:
-      - name:  pre-function       # or "pre-function" to make api call 
-        ordering:
-          before:
-            access:
-              - oauth2
+      - name:  pre-function       # or "pre-function" to make api call to sherlock, to verify login_hint
         config:
           access:
           - |
