@@ -5,43 +5,30 @@ services:
   id: 1a1a1a1a-2b2b-3c3c-4d4d-5e5e5e5e5e5e
   host: 127.0.0.1 
   tags: [oauth]
-  # NOTE: No host is defined. This service only uses plugins.
+  plugins:
+    - name: oauth2
+      config:
+        scopes:
+          - sherlockapiresource/write
+        global_credentials: true
+        provision_key: OAuth-Token-Dispenser-Key
+        enable_authorization_code: true
+        enable_client_credentials: true       
+        accept_http_if_already_terminated: true
+        pkce: lax                               
+        
   routes:
-  # Route for the token endpoint
-  - name: oauth-provider-token
-    id: 6f6f6f6f-7a7a-8b8b-9c9c-1d1d1d1d1d1d
-    paths:
-    - /oauth2/token
-    methods:
-    - POST
-    plugins:
-      - name: oauth2
-        config:
-          scopes:
-          - sherlockapiresource/write
-          global_credentials: true 
-          provision_key: OAuth-Token-Dispenser-Key
-          enable_client_credentials: true
-          enable_authorization_code: true
-          accept_http_if_already_terminated: true
-  # Route for the authorization endpoint (with Kong's built-in login page)
-  - name: oauth-provider-authorize
-    id: 2e2e2e2e-3f3f-4a4a-5b5b-6c6c6c6c6c6c
-    paths:
-    - /oauth2/authorize
-    methods:
-    - GET
-    - POST
-    plugins:
-      - name: oauth2
-        config:
-          scopes:
-          - sherlockapiresource/write
-          global_credentials: true
-          provision_key: OAuth-Token-Dispenser-Key 
-          enable_authorization_code: true
-          anonymous: "00000000-0000-0000-0000-000000000000" 
-          accept_http_if_already_terminated: true
+    # /oauth2/authorize (GET/POST)
+    - name: oauth-provider-authorize
+      id: 2e2e2e2e-3f3f-4a4a-5b5b-6c6c6c6c6c6c
+      paths: [ /oauth2/authorize ]
+      methods: [ GET, POST ]
+
+    # /oauth2/token (POST)
+    - name: oauth-provider-token
+      id: 6f6f6f6f-7a7a-8b8b-9c9c-1d1d1d1d1d1d
+      paths: [ /oauth2/token ]
+      methods: [ POST ]
 
 - host: ts43-eke-aaa-cookie.kong.svc.cluster.local
   id: de1643db-2ca0-4011-b967-8df7f845d07b
