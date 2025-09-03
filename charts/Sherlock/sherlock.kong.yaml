@@ -28,22 +28,23 @@ services:
         config:
           access:
           - |
-              -- 1. Get the 'login_hint' from the request body
-              local body_args = kong.request.get_body()
+              local body_args, err, mimetype = kong.request.get_body()
+              if err then
+                kong.log.err("Error getting request body: ", err)
+                return kong.response.exit(500, { message = "Internal server error reading request" })
+              end
+              
               local login_hint = body_args.login_hint
 
-              -- 2. If no login_hint is provided, do nothing and let the request continue
               if not login_hint or login_hint == "" then
-                return
+                return kong.response.exit(400, { message = "login_hint is a required parameter" })
               end
 
-              -- 3. Prepare and make the external HTTP call for validation
               kong.log.info("Performing external user authentication for login_hint: ", login_hint)
               
               local http_client = require "kong.http.client"
               local upstream_url = "http://34.54.169.57/v0/authenticate_user"
               
-              -- Note: In a real environment, these values should not be hardcoded
               local query_params = {
                 identifier = "ABC12345",
                 carrierName = "lab",
@@ -52,18 +53,23 @@ services:
                 ipAddress = "192.168.0.1"
               }
 
-              -- Make the GET request
               local ok, res = http_client.get(upstream_url, query_params)
 
-              -- 4. Check the response and block the request if it fails
-              if not ok or res.status ~= 200 then
-                kong.log.err("External authentication failed. Status: ", res and res.status or "nil")
-                
-                -- Deny the request before it reaches the OAuth2 plugin
+              -- 4. FIXED: Robust check for the response
+              -- First, check for connection errors (e.g., timeout, DNS failure)
+              if not ok then
+                -- In this case, 'res' is an error message string, not a table
+                kong.log.err("External authentication HTTP client error: ", res) 
+                return kong.response.exit(503, { message = "Authentication service unavailable" })
+              end
+
+              -- Second, if connection was ok, check the HTTP status code
+              if res.status ~= 200 then
+                kong.log.err("External authentication failed. Upstream status: ", res.status)
                 return kong.response.exit(401, { message = "User authentication failed" })
               end
 
-              -- 5. If we reach here, validation was successful. Allow the request to proceed.
+              -- 5. If we reach here, validation was successful.
               kong.log.info("External authentication successful for login_hint: ", login_hint)
 
 
