@@ -4,3 +4,4 @@ httpx
 python-multipart
 boto3
 redis
+requests
