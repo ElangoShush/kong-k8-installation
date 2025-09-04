@@ -23,7 +23,7 @@ REQ_TIMEOUT = float(os.getenv("HTTP_TIMEOUT_SECONDS", "10"))
 # In-cluster Kong proxy service URL for making the internal OAuth2 call
 KONG_INTERNAL_BASE = os.getenv(
     "KONG_INTERNAL_OAUTH_URL",
-    "https://kong-kong-proxy.kong.svc.cluster.local:8443"
+    "https://kong-kong-proxy.kong.svc.cluster.local:443"
 ).strip()
 
 # URL for the external service that validates the login_hint
