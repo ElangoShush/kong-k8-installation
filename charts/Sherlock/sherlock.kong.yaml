@@ -1,5 +1,19 @@
 _format_version: "3.0"
 services:
+- name: camera-auth-service
+    # The host must match the Kubernetes Service name for your microservice.
+  host: camera-auth.kong.svc.cluster.local # Corrected to match your service name
+  port: 80 # The port defined in your Kubernetes Service
+  protocol: http
+  tags: [auth, camera]
+  routes:
+  # This route exposes your service to the outside world via Kong.
+    - name: camera-authorizer-route
+      paths:
+        - /camera/authorizer
+      strip_path: true # IMPORTANT: This removes /camera/authorizer before forwarding
+      tags: [auth, camera]
+
 # ADDED: A new service dedicated to handling the OAuth2 flow with plugins
 - name: oauth-provider
   id: 1a1a1a1a-2b2b-3c3c-4d4d-5e5e5e5e5e5e
@@ -23,55 +37,6 @@ services:
       id: 2e2e2e2e-3f3f-4a4a-5b5b-6c6c6c6c6c6c
       paths: [ /oauth2/authorize ]
       methods: [ GET, POST ]
-      plugins:
-      - name:  pre-function       # or "pre-function" to make api call to sherlock, to verify login_hint
-        config:
-          access:
-          - |
-              local body_args, err, mimetype = kong.request.get_body()
-              if err then
-                kong.log.err("Error getting request body: ", err)
-                return kong.response.exit(500, { message = "Internal server error reading request" })
-              end
-              
-              local login_hint = body_args.login_hint
-
-              if not login_hint or login_hint == "" then
-                return kong.response.exit(400, { message = "login_hint is a required parameter" })
-              end
-
-              kong.log.info("Performing external user authentication for login_hint: ", login_hint)
-              
-              local http_client = require "kong.http.client"
-              local upstream_url = "http://34.54.169.57/v0/authenticate_user"
-              
-              local query_params = {
-                identifier = "ABC12345",
-                carrierName = "lab",
-                customerName = "Bank1",
-                msisdn = login_hint,
-                ipAddress = "192.168.0.1"
-              }
-
-              local ok, res = http_client.get(upstream_url, query_params)
-
-              -- 4. FIXED: Robust check for the response
-              -- First, check for connection errors (e.g., timeout, DNS failure)
-              if not ok then
-                -- In this case, 'res' is an error message string, not a table
-                kong.log.err("External authentication HTTP client error: ", res) 
-                return kong.response.exit(503, { message = "Authentication service unavailable" })
-              end
-
-              -- Second, if connection was ok, check the HTTP status code
-              if res.status ~= 200 then
-                kong.log.err("External authentication failed. Upstream status: ", res.status)
-                return kong.response.exit(401, { message = "User authentication failed" })
-              end
-
-              -- 5. If we reach here, validation was successful.
-              kong.log.info("External authentication successful for login_hint: ", login_hint)
-
 
     # /oauth2/token (POST)
     - name: oauth-provider-token
