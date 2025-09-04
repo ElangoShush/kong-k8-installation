@@ -1,3 +1,6 @@
 fastapi
 uvicorn[standard]
 httpx
+python-multipart
+boto3
+redis
