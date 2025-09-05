@@ -71,8 +71,9 @@ services:
         # Step 2: Capture the 'login_hint' query parameter and create the  heade, need to semd login_hint again the 2nd token req.
         - name: request-transformer
           config:
-            headers:
-            - "X-Login-Hint:$(query_params.login_hint)"
+            add:
+              headers:
+              - "X-Login-Hint:$(query_params.login_hint)"
 
 - host: ts43-eke-aaa-cookie.kong.svc.cluster.local
   id: de1643db-2ca0-4011-b967-8df7f845d07b
