@@ -2,7 +2,7 @@ _format_version: "3.0"
 services:
 - name: camera-auth-service
     # The host must match the Kubernetes Service name for your microservice.
-  host: camera-auth.kong.svc.cluster.local # Corrected to match your service name
+  host: camera-auth-service.kong.svc.cluster.local # Corrected to match your service name
   port: 80 
   protocol: http
   tags: [auth, camera]
@@ -46,10 +46,10 @@ services:
 
 #ADDED: Service that exchange the JWT token for opaque auth code, for Number verify, phonenumner to be in JWT claim.
 - name: jwt-issuer-service
-  host: httpbin.org # A mock upstream is fine, as plugins run before the request is proxied.
+  host: 127.0.0.1 # A mock upstream is fine, as plugins run before the request is proxied.
   path: /anything 
-  protocol: https
-  port: 443
+  protocol: http
+  port: 80
   tags: [jwt, auth]
   routes:
     - name: jwt-issuer-route
@@ -73,8 +73,9 @@ services:
           # Step 3: Issue the JWT, pulling claims from the consumer and the new header
         - name: jwt
           config:
+            key_claim_name: kid
             claims_to_verify:
-              - iss
+              - exp
             add_claims:
                 - "login_hint" 
             claims_source:
