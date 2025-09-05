@@ -61,6 +61,8 @@ services:
         # Step 1: Validate the incoming opaque Bearer token from the client. note i need to create consumer accordingly.
         - name: oauth2
           config:
+            provision_key: OAuth-Token-Dispenser-Key
+            global_credentials: true
             scopes:
               - sherlockapiresource/write
             accept_http_if_already_terminated: true
@@ -73,14 +75,11 @@ services:
           # Step 3: Issue the JWT, pulling claims from the consumer and the new header
         - name: jwt
           config:
-            key_claim_name: kid
-            claims_to_verify:
-              - exp
             add_claims:
-                - "login_hint" 
+              - "login_hint" 
             claims_source:
               login_hint: "header:X-Login-Hint"
-
+              
 - host: ts43-eke-aaa-cookie.kong.svc.cluster.local
   id: de1643db-2ca0-4011-b967-8df7f845d07b
   name: ts43-cookie
