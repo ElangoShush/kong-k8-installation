@@ -29,7 +29,11 @@ services:
         enable_authorization_code: true
         enable_client_credentials: true       
         accept_http_if_already_terminated: true
-        pkce: lax                               
+        pkce: lax      
+        token_expiration: 3600   
+        persistent_refresh_token: true
+        jwt_access_token: true #switch to jwt, we need to embedded phonenumber in jwt claims
+        jwt_secret_is_base64: false                      
         
   routes:
     # /oauth2/authorize (GET/POST)
