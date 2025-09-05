@@ -62,6 +62,7 @@ services:
         - name: oauth2
           config:
             provision_key: OAuth-Token-Dispenser-Key
+            enable_authorization_code: true
             global_credentials: true
             scopes:
               - sherlockapiresource/write
@@ -79,7 +80,7 @@ services:
               - "login_hint" 
             claims_source:
               login_hint: "header:X-Login-Hint"
-              
+
 - host: ts43-eke-aaa-cookie.kong.svc.cluster.local
   id: de1643db-2ca0-4011-b967-8df7f845d07b
   name: ts43-cookie
