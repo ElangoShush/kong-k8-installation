@@ -1,4 +1,4 @@
-# FILE: app.py
+# FILE: jwt-issuer.py
 
 import jwt
 import os
@@ -13,6 +13,8 @@ app = FastAPI()
 KONG_ADMIN_URL = os.environ.get("KONG_ADMIN_URL")
 JWT_ALGORITHM = "HS256"
 TOKEN_LIFETIME = 3600
+# For self-signed certs in-cluster, 
+VERIFY_TLS = os.getenv("VERIFY_TLS", "false").lower() in ("1", "true", "yes") 
 
 # A simple in-memory cache to avoid calling the Kong Admin API on every request
 secret_cache = {}
@@ -30,7 +32,8 @@ def get_secret_for_consumer(username: str) -> Optional[str]:
 
     try:
         url = f"{KONG_ADMIN_URL}/consumers/{username}/jwt"
-        response = requests.get(url, timeout=5)
+        # Adde d verify=VERIFY_TLS to disable SSL verification for in-cluster calls.
+        response = requests.get(url, timeout=5, verify=VERIFY_TLS) 
         response.raise_for_status()
         
         data = response.json().get("data", [])
@@ -76,4 +79,3 @@ def issue_jwt(
 @app.get("/healthz")
 def healthz():
     return Response(content="OK", status_code=200)
-
