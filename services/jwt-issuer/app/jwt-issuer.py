@@ -11,9 +11,10 @@ app = Flask(__name__)
 # --- Configuration ---
 KONG_ADMIN_URL = os.environ.get("KONG_ADMIN_URL")
 JWT_ALGORITHM = "HS256"
-TOKEN_LIFETIME = 3600
+TOKEN_LIFETIME = 3600. #i Added 1 hour as expiry time 
 
-# A simple in-memory cache to avoid calling the Kong Admin API on every request
+# A simple in-memory cache to avoid calling the Kong Admin API on every 
+# when moriartu create client for camera, need to have same secret.
 secret_cache = {}
 
 def get_secret_for_consumer(username):
@@ -61,12 +62,11 @@ def issue_jwt():
 
     current_time = int(time.time())
     
-    # FIXED: Replaced "..." with proper 'iat' and 'exp' claims.
     payload = {
         "iss": consumer_username,
         "login_hint": login_hint,
         "iat": current_time,
-        "exp": current_time + TOKEN_LIFETIME
+        "exp": current_time + TOKEN_LIFETIME #defined as 1 hour.
     }
 
     signed_jwt = jwt.encode(payload, jwt_secret, algorithm=JWT_ALGORITHM)
