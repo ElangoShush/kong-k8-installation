@@ -3,7 +3,7 @@ services:
 - name: camera-auth-service
     # The host must match the Kubernetes Service name for your microservice.
   host: camera-auth.kong.svc.cluster.local # Corrected to match your service name
-  port: 80 # The port defined in your Kubernetes Service
+  port: 80 
   protocol: http
   tags: [auth, camera]
   routes:
@@ -29,11 +29,7 @@ services:
         enable_authorization_code: true
         enable_client_credentials: true       
         accept_http_if_already_terminated: true
-        pkce: lax      
-        token_expiration: 3600   
-        persistent_refresh_token: true
-        jwt_access_token: true #switch to jwt, we need to embedded phonenumber in jwt claims
-        jwt_secret_is_base64: false                      
+        pkce: lax                          
         
   routes:
     # /oauth2/authorize (GET/POST)
@@ -47,6 +43,42 @@ services:
       id: 6f6f6f6f-7a7a-8b8b-9c9c-1d1d1d1d1d1d
       paths: [ /oauth2/token ]
       methods: [ POST ]
+
+#ADDED: Service that exchange the JWT token for opaque auth code, for Number verify, phonenumner to be in JWT claim.
+- name: jwt-issuer-service
+  host: httpbin.org # A mock upstream is fine, as plugins run before the request is proxied.
+  path: /anything 
+  protocol: https
+  port: 443
+  tags: [jwt, auth]
+  routes:
+    - name: jwt-issuer-route
+      paths:
+        - /issue-jwt
+      methods: [ GET ]
+      strip_path: true
+      plugins:
+        # Step 1: Validate the incoming opaque Bearer token from the client. note i need to create consumer accordingly.
+        - name: oauth2
+          config:
+            scopes:
+              - sherlockapiresource/write
+            accept_http_if_already_terminated: true
+        # Step 2: Capture the 'login_hint' query parameter and create the  heade, need to semd login_hint again the 2nd token req.
+        - name: request-transformer
+          config:
+            add:
+              headers:
+                 - "X-Login-Hint:$(uri_capture.login_hint)"
+          # Step 3: Issue the JWT, pulling claims from the consumer and the new header
+        - name: jwt
+          config:
+            claims_to_verify:
+              - iss
+            add_claims:
+                - "login_hint" 
+            claims_source:
+              login_hint: "header:X-Login-Hint"
 
 - host: ts43-eke-aaa-cookie.kong.svc.cluster.local
   id: de1643db-2ca0-4011-b967-8df7f845d07b
@@ -648,7 +680,11 @@ consumers:
     tags: []
     oauth2_credentials:
       - name: test-app
-        client_id: "test"       # <-- set your actual values
+        client_id: "test"       
         client_secret: "test"
         redirect_uris: 
           - https://oauth.pstmn.io/v1/callback
+    jwt_secrets:
+      - key: test-app-issuer 
+        algorithm: HS256
+        secret: strongpassword #since im testing, lets use HS256, dont need for any privates ans public keys
