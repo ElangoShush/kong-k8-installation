@@ -68,12 +68,16 @@ services:
               - sherlockapiresource/write
             accept_http_if_already_terminated: true
         # Step 2: Capture the 'login_hint' query parameter and create the  heade, need to semd login_hint again the 2nd token req.
-        - name: request-transformer
+        - name: pre-function
           config:
-            add:
-              headers:
-                 - "X-Login-Hint:$(uri_capture.login_hint)"
-          # Step 3: Issue the JWT, pulling claims from the consumer and the new header
+            access:
+             - |
+                local q = kong.request.get_query()
+                if q and q.login_hint then
+                  kong.service.request.set_header("X-Login-Hint", q.login_hint)
+                end
+
+        # Step 3: Issue the JWT, pulling claims from the consumer and the new header
         - name: jwt
           config:
             add_claims:
