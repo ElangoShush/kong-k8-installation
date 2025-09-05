@@ -46,8 +46,8 @@ services:
 
 #ADDED: Service that exchange the JWT token for opaque auth code, for Number verify, phonenumner to be in JWT claim.
 - name: jwt-issuer-service
-  host: 127.0.0.1 # A mock upstream is fine, as plugins run before the request is proxied.
-  path: /anything 
+  host: jwt-issuer-service.kong.svc.cluster.local # A mock upstream is fine, as plugins run before the request is proxied.
+  path: / 
   protocol: http
   port: 80
   tags: [jwt, auth]
@@ -67,15 +67,12 @@ services:
             scopes:
               - sherlockapiresource/write
             accept_http_if_already_terminated: true
+
         # Step 2: Capture the 'login_hint' query parameter and create the  heade, need to semd login_hint again the 2nd token req.
-        - name: pre-function
+        - name: request-transformer
           config:
-            access:
-             - |
-                local q = kong.request.get_query()
-                if q and q.login_hint then
-                  kong.service.request.set_header("X-Login-Hint", q.login_hint)
-                end
+            headers:
+            - "X-Login-Hint:$(query_params.login_hint)"
 
         # Step 3: Issue the JWT, pulling claims from the consumer and the new header
         - name: jwt
