@@ -4,20 +4,20 @@ import jwt
 import os
 import time
 import requests
-from flask import Flask, request, jsonify
+from fastapi import FastAPI, Header, HTTPException, Response
+from typing import Optional
 
-app = Flask(__name__)
+app = FastAPI()
 
 # --- Configuration ---
 KONG_ADMIN_URL = os.environ.get("KONG_ADMIN_URL")
 JWT_ALGORITHM = "HS256"
-TOKEN_LIFETIME = 3600. #i Added 1 hour as expiry time 
+TOKEN_LIFETIME = 3600
 
-# A simple in-memory cache to avoid calling the Kong Admin API on every 
-# when moriartu create client for camera, need to have same secret.
+# A simple in-memory cache to avoid calling the Kong Admin API on every request
 secret_cache = {}
 
-def get_secret_for_consumer(username):
+def get_secret_for_consumer(username: str) -> Optional[str]:
     """
     Fetches a consumer's JWT secret from the Kong Admin API, with caching.
     """
@@ -30,7 +30,7 @@ def get_secret_for_consumer(username):
 
     try:
         url = f"{KONG_ADMIN_URL}/consumers/{username}/jwt"
-        response = requests.get(url, timeout=5) # Added timeout
+        response = requests.get(url, timeout=5)
         response.raise_for_status()
         
         data = response.json().get("data", [])
@@ -47,32 +47,33 @@ def get_secret_for_consumer(username):
     print(f"WARN: No JWT secret found for consumer '{username}'")
     return None
 
-@app.route("/")
-def issue_jwt():
-    consumer_username = request.headers.get("X-Consumer-Username")
-    login_hint = request.headers.get("X-Login-Hint")
+@app.get("/")
+def issue_jwt(
+    x_consumer_username: Optional[str] = Header(None),
+    x_login_hint: Optional[str] = Header(None)
+):
+    if not x_consumer_username or not x_login_hint:
+        raise HTTPException(status_code=400, detail="Missing required headers from Kong Gateway")
 
-    if not consumer_username or not login_hint:
-        return jsonify({"error": "Missing required headers from Kong Gateway"}), 400
-
-    jwt_secret = get_secret_for_consumer(consumer_username)
+    jwt_secret = get_secret_for_consumer(x_consumer_username)
 
     if not jwt_secret:
-        return jsonify({"error": f"Could not find a valid secret for consumer '{consumer_username}'"}), 500
+        raise HTTPException(status_code=500, detail=f"Could not find a valid secret for consumer '{x_consumer_username}'")
 
     current_time = int(time.time())
     
     payload = {
-        "iss": consumer_username,
-        "login_hint": login_hint,
+        "iss": x_consumer_username,
+        "login_hint": x_login_hint,
         "iat": current_time,
-        "exp": current_time + TOKEN_LIFETIME #defined as 1 hour.
+        "exp": current_time + TOKEN_LIFETIME
     }
 
     signed_jwt = jwt.encode(payload, jwt_secret, algorithm=JWT_ALGORITHM)
     
-    return jsonify({"jwt": signed_jwt})
+    return {"jwt": signed_jwt}
 
-@app.route("/healthz")
+@app.get("/healthz")
 def healthz():
-    return "OK", 200
+    return Response(content="OK", status_code=200)
+
