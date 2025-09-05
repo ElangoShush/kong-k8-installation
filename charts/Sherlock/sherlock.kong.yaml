@@ -74,14 +74,6 @@ services:
             headers:
             - "X-Login-Hint:$(query_params.login_hint)"
 
-        # Step 3: Issue the JWT, pulling claims from the consumer and the new header
-        - name: jwt
-          config:
-            add_claims:
-              - "login_hint" 
-            claims_source:
-              login_hint: "header:X-Login-Hint"
-
 - host: ts43-eke-aaa-cookie.kong.svc.cluster.local
   id: de1643db-2ca0-4011-b967-8df7f845d07b
   name: ts43-cookie
