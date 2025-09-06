@@ -638,7 +638,16 @@ services:
     name: sherlock-api_silent-authentication-retrieve-ip-address-silent-authentication-v0-retrieve-ip-address-post
     paths:
     - ~/silent-authentication/v0/retrieve-ip-address$
-    plugins: []
+    plugins:
+      - name: oauth2
+        config:
+          provision_key: OAuth-Token-Dispenser-Key
+          scopes:
+          - sherlockapiresource/write 
+          global_credentials: true 
+          enable_authorization_code: true 
+          enable_client_credentials: true
+          accept_http_if_already_terminated: true
     regex_priority: 200
     strip_path: false
     tags: [sherlock]
@@ -650,7 +659,16 @@ services:
     name: sherlock-api_silent-authentication-verify-ip-address-silent-authentication-v0-verify-ip-address-post
     paths:
     - ~/silent-authentication/v0/verify-ip-address$
-    plugins: []
+    plugins:
+      - name: oauth2
+        config:
+          provision_key: OAuth-Token-Dispenser-Key
+          scopes:
+          - sherlockapiresource/write 
+          global_credentials: true 
+          enable_authorization_code: true 
+          enable_client_credentials: true
+          accept_http_if_already_terminated: true
     regex_priority: 200
     strip_path: false
     tags: [sherlock]
