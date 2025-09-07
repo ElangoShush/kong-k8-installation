@@ -14,7 +14,7 @@ from fastapi.responses import JSONResponse
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
 log = logging.getLogger("camera-auth")
 
-# For self-signed certs in-cluster, you will want this to be false.
+# For self-signed certs in-cluster, Currently i set to false, because KONG use Self Signed Cert .
 VERIFY_TLS = os.getenv("VERIFY_TLS", "false").lower() in ("1", "true", "yes")
 
 # HTTP timeouts
@@ -46,7 +46,7 @@ def healthz():
     return {"status": "ok"}
 
 
-# --- Helper Function ---
+# --- Helper Functions ---
 def parse_code_from_uri(uri: str) -> str | None:
     """Extracts the 'code' query parameter from a URI."""
     try:
@@ -57,8 +57,31 @@ def parse_code_from_uri(uri: str) -> str | None:
         log.error(f"Failed to parse code from URI: {uri}. Error: {e}")
         return None
 
+# --- NEW HELPER FUNCTION TO PARSE LOGIN HINT ---
+def parse_login_hint(hint: str) -> Dict[str, str]:
+    try:
+        # parse_qs returns a dict where values are lists
+        parsed_data = parse_qs(hint)
+        if not parsed_data:
+            raise ValueError("login_hint is empty or in an invalid format.")
+            
+        # We expect single values, so we extract the first element of each list
+        data = {k: v[0] for k, v in parsed_data.items()}
+        
+        # Validate that all required keys are present
+        required_keys = ["msisdn", "identifier", "carrierName", "customerName", "ipAddress"]
+        missing_keys = [key for key in required_keys if key not in data]
+        if missing_keys:
+            raise ValueError(f"Missing required parameters in login_hint: {', '.join(missing_keys)}")
+            
+        return data
+    except Exception as e:
+        log.error(f"Failed to parse login_hint: '{hint}'. Error: {e}")
+        # Re-raise as ValueError to be caught by the endpoint handler
+        raise ValueError(f"Invalid login_hint format. {e}")
 
-# --- Main Authorization Endpoint ---
+
+# --- Main Authorization Endpoint (MODIFIED) ---
 @app.post("/")
 def handle_authorization(
     response: Response,
@@ -71,24 +94,30 @@ def handle_authorization(
     provision_key: str = Form(...),
     authenticated_userid: str = Form(...)
 ):
-    log.info(f"Received authorization request for login_hint: {login_hint}")
+    log.info(f"Received authorization request with login_hint: {login_hint}")
 
-    # --- Step 1: Call External Authentication API ---
-    auth_params = {
-        "identifier": "ABC12345",
-        "carrierName": "lab",
-        "customerName": "Bank1",
-        "msisdn": login_hint,
-        "ipAddress": "192.168.0.1"
-    }
-
+    # --- Step 1: Parse login_hint and Call External Authentication API ---
     try:
-        log.info(f"Calling external auth API: {EXTERNAL_AUTH_URL}")
+        # Dynamically get params from the login_hint string
+        parsed_hint_data = parse_login_hint(login_hint)
+        # Build the params for the external auth call
+        auth_params = {
+            "identifier": parsed_hint_data["identifier"],
+            "carrierName": parsed_hint_data["carrierName"],
+            "customerName": parsed_hint_data["customerName"],
+            "msisdn": parsed_hint_data["msisdn"],
+            "ipAddress": parsed_hint_data["ipAddress"]
+        }
+    except ValueError as e:
+        # If parsing fails (e.g., missing keys), return a 400 Bad Request
+        raise HTTPException(status_code=400, detail=str(e))
+    try:
+        log.info(f"Calling external auth API: {EXTERNAL_AUTH_URL} with params: {auth_params}")
         external_resp = requests.get(
             EXTERNAL_AUTH_URL,
             params=auth_params,
             timeout=REQ_TIMEOUT,
-            verify=VERIFY_TLS  # Typically False for external, non-TLS endpoint
+            verify=VERIFY_TLS
         )
         if external_resp.status_code != 200:
             log.warning(f"External auth failed with status {external_resp.status_code}: {external_resp.text}")
@@ -105,9 +134,9 @@ def handle_authorization(
             "scope": scope,
             "provision_key": provision_key,
             "authenticated_userid": authenticated_userid,
-            "login_hint": login_hint
+            # Pass the original, full login_hint to Kong if needed
+            "login_hint": login_hint 
         }
-        # Filter out any optional params that were not sent
         kong_payload = {k: v for k, v in kong_payload.items() if v is not None}
 
         log.info(f"Calling Kong's internal authorize endpoint: {kong_authorize_url}")
@@ -115,12 +144,11 @@ def handle_authorization(
             kong_authorize_url,
             data=kong_payload,
             timeout=REQ_TIMEOUT,
-            verify=VERIFY_TLS # IMPORTANT: This should be false for in-cluster communication
+            verify=VERIFY_TLS
         )
 
         if kong_resp.status_code >= 400:
             log.error(f"Kong returned an error. Status: {kong_resp.status_code}. Response: {kong_resp.text}")
-            # Forward the exact error from Kong
             return JSONResponse(status_code=kong_resp.status_code, content={"error_detail": kong_resp.text})
 
         # --- Step 3: Success. Extract code and return redirect URI ---
@@ -139,4 +167,3 @@ def handle_authorization(
     except Exception as e:
         log.exception("An unexpected error occurred")
         raise HTTPException(status_code=500, detail="An internal server error occurred")
-
