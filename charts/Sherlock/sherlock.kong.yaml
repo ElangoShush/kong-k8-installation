@@ -556,8 +556,13 @@ services:
     - GET
     name: sherlock-api_number-verification-retrieve-number-by-token-number-verification-v0-retrieve-phone-number-get
     paths:
-    - ~/number-verification/v0/retrieve_phone_number$
-    plugins: []
+    - ~/number-verification/v0/retrieve_phone_number
+    plugins:
+    - name: jwt
+      config:
+        key_claim_name: iss
+        claims_to_verify: [ exp ]
+        run_on_preflight: true
     regex_priority: 200
     strip_path: false
     tags: [sherlock]
@@ -589,8 +594,13 @@ services:
     - POST
     name: sherlock-api_number-verification-verify-number-by-token-number-verification-v0-verify-phone-number-post
     paths:
-    - ~/number-verification/v0/verify_phone_number$
-    plugins: []
+    - ~/number-verification/v0/verify_phone_number
+    plugins:
+    - name: jwt
+      config:
+        key_claim_name: iss
+        claims_to_verify: [ exp ]
+        run_on_preflight: true
     regex_priority: 200
     strip_path: false
     tags: [sherlock]
