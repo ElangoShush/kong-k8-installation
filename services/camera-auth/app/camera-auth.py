@@ -46,7 +46,7 @@ def healthz():
     return {"status": "ok"}
 
 
-# --- Helper Functions ---
+# --- Helper Function ---
 def parse_code_from_uri(uri: str) -> str | None:
     """Extracts the 'code' query parameter from a URI."""
     try:
@@ -57,60 +57,40 @@ def parse_code_from_uri(uri: str) -> str | None:
         log.error(f"Failed to parse code from URI: {uri}. Error: {e}")
         return None
 
-# --- NEW HELPER FUNCTION TO PARSE LOGIN HINT ---
-def parse_login_hint(hint: str) -> Dict[str, str]:
-    try:
-        # parse_qs returns a dict where values are lists
-        parsed_data = parse_qs(hint)
-        if not parsed_data:
-            raise ValueError("login_hint is empty or in an invalid format.")
-            
-        # We expect single values, so we extract the first element of each list
-        data = {k: v[0] for k, v in parsed_data.items()}
-        
-        # Validate that all required keys are present
-        required_keys = ["msisdn", "identifier", "carrierName", "customerName", "ipAddress"]
-        missing_keys = [key for key in required_keys if key not in data]
-        if missing_keys:
-            raise ValueError(f"Missing required parameters in login_hint: {', '.join(missing_keys)}")
-            
-        return data
-    except Exception as e:
-        log.error(f"Failed to parse login_hint: '{hint}'. Error: {e}")
-        # Re-raise as ValueError to be caught by the endpoint handler
-        raise ValueError(f"Invalid login_hint format. {e}")
-
+# The parse_login_hint function has been removed as it is no longer needed.
 
 # --- Main Authorization Endpoint (MODIFIED) ---
 @app.post("/")
 def handle_authorization(
     response: Response,
-    # Use Form() to extract data from 'application/x-www-form-urlencoded'
-    login_hint: str = Form(...),
-    response_type: str = Form("code"),
+    # Standard OAuth fields
+    response_type: str = Form(...),
     client_id: str = Form(...),
     redirect_uri: str = Form(...),
     scope: str = Form(None),
     provision_key: str = Form(...),
-    authenticated_userid: str = Form(...)
+    authenticated_userid: str = Form(...),
+    
+    # Custom fields now received separately
+    login_hint: str = Form(...), #  msisdn
+    identifier: str = Form(...),
+    carrierName: str = Form(...),
+    customerName: str = Form(...),
+    ipAddress: str = Form(...),
+    grant_type: str = Form(None) # Added to accept the field from your curl command
 ):
-    log.info(f"Received authorization request with login_hint: {login_hint}")
+    log.info(f"Received authorization request for login_hint (msisdn): {login_hint}")
 
-    # --- Step 1: Parse login_hint and Call External Authentication API ---
-    try:
-        # Dynamically get params from the login_hint string
-        parsed_hint_data = parse_login_hint(login_hint)
-        # Build the params for the external auth call
-        auth_params = {
-            "identifier": parsed_hint_data["identifier"],
-            "carrierName": parsed_hint_data["carrierName"],
-            "customerName": parsed_hint_data["customerName"],
-            "msisdn": parsed_hint_data["msisdn"],
-            "ipAddress": parsed_hint_data["ipAddress"]
-        }
-    except ValueError as e:
-        # If parsing fails (e.g., missing keys), return a 400 Bad Request
-        raise HTTPException(status_code=400, detail=str(e))
+    # Step 1: Call External Authentication API
+    # Build the params directly from the incoming form fields.
+    auth_params = {
+        "identifier": identifier,
+        "carrierName": carrierName,
+        "customerName": customerName,
+        "msisdn": login_hint,
+        "ipAddress": ipAddress
+    }
+
     try:
         log.info(f"Calling external auth API: {EXTERNAL_AUTH_URL} with params: {auth_params}")
         external_resp = requests.get(
@@ -125,7 +105,7 @@ def handle_authorization(
 
         log.info("External authentication successful.")
 
-        # --- Step 2: Call Kong's internal /oauth2/authorize endpoint ---
+        # Step 2: Call Kong's internal /oauth2/authorize endpoint 
         kong_authorize_url = KONG_INTERNAL_BASE.rstrip("/") + "/oauth2/authorize"
         kong_payload = {
             "response_type": response_type,
@@ -134,8 +114,7 @@ def handle_authorization(
             "scope": scope,
             "provision_key": provision_key,
             "authenticated_userid": authenticated_userid,
-            # Pass the original, full login_hint to Kong if needed
-            "login_hint": login_hint 
+            "login_hint": login_hint
         }
         kong_payload = {k: v for k, v in kong_payload.items() if v is not None}
 
@@ -151,7 +130,7 @@ def handle_authorization(
             log.error(f"Kong returned an error. Status: {kong_resp.status_code}. Response: {kong_resp.text}")
             return JSONResponse(status_code=kong_resp.status_code, content={"error_detail": kong_resp.text})
 
-        # --- Step 3: Success. Extract code and return redirect URI ---
+        # Step 3: Success. Extract code and return redirect URI 
         response_data = kong_resp.json()
         redirect_uri_from_kong = response_data.get("redirect_uri")
         if not redirect_uri_from_kong or not parse_code_from_uri(redirect_uri_from_kong):
