@@ -1,80 +1,85 @@
 # FILE: jwt-issuer.py
 
-import jwt
 import os
 import time
+from typing import Optional, Tuple
+
+import jwt
 import requests
 from fastapi import FastAPI, Header, HTTPException, Response
-from typing import Optional
 
 app = FastAPI()
 
 # --- Configuration ---
-KONG_ADMIN_URL = os.environ.get("KONG_ADMIN_URL")
-JWT_ALGORITHM = "HS256"
-TOKEN_LIFETIME = 3600
-# For self-signed certs in-cluster, 
-VERIFY_TLS = os.getenv("VERIFY_TLS", "false").lower() in ("1", "true", "yes") 
+KONG_ADMIN_URL = os.environ.get("KONG_ADMIN_URL")  
+JWT_ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
+TOKEN_LIFETIME = int(os.getenv("TOKEN_LIFETIME", "3600"))
+# set to SSL verifycation, for cluster internal communication
+VERIFY_TLS = os.getenv("VERIFY_TLS", "false").lower() in ("1", "true", "yes")
 
-# A simple in-memory cache to avoid calling the Kong Admin API on every request
-secret_cache = {}
+# In Memory Cache to avoid repeated Admin API calls
+_cred_cache = {} 
 
-def get_secret_for_consumer(username: str) -> Optional[str]:
-    """
-    Fetches a consumer's JWT secret from the Kong Admin API, with caching.
-    """
-    if username in secret_cache:
-        return secret_cache[username]
+
+def get_jwt_credential(username: str) -> Optional[Tuple[str, str]]:
+    if username in _cred_cache:
+        return _cred_cache[username]
 
     if not KONG_ADMIN_URL:
-        print("ERROR: KONG_ADMIN_URL environment variable is not set.")
+        print("ERROR: KONG_ADMIN_URL is not set")
         return None
 
     try:
         url = f"{KONG_ADMIN_URL}/consumers/{username}/jwt"
-        # Adde d verify=VERIFY_TLS to disable SSL verification for in-cluster calls.
-        response = requests.get(url, timeout=5, verify=VERIFY_TLS) 
-        response.raise_for_status()
-        
-        data = response.json().get("data", [])
+        resp = requests.get(url, timeout=5, verify=VERIFY_TLS)
+        resp.raise_for_status()
+        data = resp.json().get("data", [])
         if data:
-            secret = data[0].get("secret")
-            if secret:
-                secret_cache[username] = secret
-                return secret
-            
-    except requests.exceptions.RequestException as e:
-        print(f"ERROR: Could not fetch secret for consumer '{username}': {e}")
+            cred = data[0]
+            key = cred.get("key")
+            secret = cred.get("secret")
+            if key and secret:
+                _cred_cache[username] = (key, secret)
+                return key, secret
+    except requests.RequestException as e:
+        print(f"ERROR: fetching JWT credential for '{username}': {e}")
         return None
-    
-    print(f"WARN: No JWT secret found for consumer '{username}'")
+
+    print(f"WARN: No JWT credential for consumer '{username}'")
     return None
+
 
 @app.get("/")
 def issue_jwt(
-    x_consumer_username: Optional[str] = Header(None),
-    x_login_hint: Optional[str] = Header(None)
+    x_consumer_username: Optional[str] = Header(None),  
+    x_login_hint: Optional[str] = Header(None),         
 ):
     if not x_consumer_username or not x_login_hint:
-        raise HTTPException(status_code=400, detail="Missing required headers from Kong Gateway")
+        raise HTTPException(
+            status_code=400,
+            detail="Missing required headers from Kong Gateway (X-Consumer-Username, X-Login-Hint)",
+        )
 
-    jwt_secret = get_secret_for_consumer(x_consumer_username)
+    cred = get_jwt_credential(x_consumer_username)
+    if not cred:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Could not find a valid JWT credential for consumer '{x_consumer_username}'",
+        )
 
-    if not jwt_secret:
-        raise HTTPException(status_code=500, detail=f"Could not find a valid secret for consumer '{x_consumer_username}'")
+    key, secret = cred  
 
-    current_time = int(time.time())
-    
+    now = int(time.time())
     payload = {
-        "iss": x_consumer_username,
-        "login_hint": x_login_hint,
-        "iat": current_time,
-        "exp": current_time + TOKEN_LIFETIME
+        "iss": key,                 
+        "login_hint": x_login_hint,  
+        "iat": now,
+        "exp": now + TOKEN_LIFETIME,
     }
 
-    signed_jwt = jwt.encode(payload, jwt_secret, algorithm=JWT_ALGORITHM)
-    
-    return {"jwt": signed_jwt}
+    token = jwt.encode(payload, secret, algorithm=JWT_ALGORITHM)
+    return {"jwt": token}
+
 
 @app.get("/healthz")
 def healthz():
