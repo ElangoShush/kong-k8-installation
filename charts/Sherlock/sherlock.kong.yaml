@@ -143,16 +143,16 @@ services:
     service:
         id: 83f03359-19f7-5f8d-b8c1-e2c8267ebf83
       # GET /v2/authenticate_ts43_client
-  - id: 2e6acf9f-7892-5cc6-b8a4-39769531bbab
-    methods:
-    - GET
-    name: sherlock-api_authenticate-ts43-client-v2-authenticate-ts43-client-get
-    paths:
-    - ~/v2/authenticate_ts43_client
-    plugins: []
-    regex_priority: 200
-    strip_path: false
-    tags: [TS43]
+  # - id: 2e6acf9f-7892-5cc6-b8a4-39769531bbab
+  #   methods:
+  #   - GET
+  #   name: sherlock-api_authenticate-ts43-client-v2-authenticate-ts43-client-get
+  #   paths:
+  #   - ~/v2/authenticate_ts43_client
+  #   plugins: []
+  #   regex_priority: 200
+  #   strip_path: false
+  #   tags: [TS43]
 
       # POST /v2/authenticate_ts43_client (challenge)
   
