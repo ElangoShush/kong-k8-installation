@@ -146,7 +146,7 @@ services:
   # - id: 2e6acf9f-7892-5cc6-b8a4-39769531bbab
   #   methods:
   #   - GET
-  #   name: sherlock-api_authenticate-ts43-client-v2-authenticate-ts43-client-get
+  #   name: sherlock-api_authenticate-ts43-clsient-v2-authenticate-ts43-client-get
   #   paths:
   #   - ~/v2/authenticate_ts43_client
   #   plugins: []
