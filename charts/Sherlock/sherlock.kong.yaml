@@ -563,6 +563,11 @@ services:
         key_claim_name: iss
         claims_to_verify: [ exp ]
         run_on_preflight: true
+    - name: request-transformer
+      config:
+        rename:
+          headers:
+          - X-Credential-Jwt-Claim-login_hint:phonenumber
     regex_priority: 200
     strip_path: false
     tags: [sherlock]
@@ -601,6 +606,11 @@ services:
         key_claim_name: iss
         claims_to_verify: [ exp ]
         run_on_preflight: true
+    - name: request-transformer
+      config:
+        rename:
+          headers:
+          - X-Credential-Jwt-Claim-login_hint:phonenumber
     regex_priority: 200
     strip_path: false
     tags: [sherlock]
