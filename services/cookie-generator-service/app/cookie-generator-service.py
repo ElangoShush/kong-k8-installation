@@ -18,12 +18,7 @@ app = FastAPI(
     version="2.0.0" # Updated version
 )
 
-# --- vvvvvv THIS FUNCTION HAS BEEN MODIFIED vvvvvv ---
 def generate_session_cookie(eapid: str) -> str:
-    """
-    Generates a cookie value in the new format:
-    urlsafe_base64(random_bytes(32)),eapid:(eapid_value)
-    """
     if not isinstance(eapid, str) or not eapid:
         return ""
 
@@ -76,7 +71,7 @@ async def proxy_and_set_cookie(request: Request):
     if backend_response.status_code == 200:
         cookie_value = generate_session_cookie(eapid_header)
         if cookie_value:
-            client_response.set_cookie(cookie_value)
+            client_response.setcookie(key="session_id", value=cookie_value)
             print(f"Successfully set session cookie for eapid: {eapid_header}")
 
     return client_response
