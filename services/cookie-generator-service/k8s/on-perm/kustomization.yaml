@@ -1,3 +1,4 @@
+# k8s/on-perm/kustomization.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
@@ -6,7 +7,6 @@ namespace: kong
 resources:
   - ../base
 
-# Pin/override your image/tag at deploy-time
 images:
   - name: us-central1-docker.pkg.dev/sherlock-004/ts43/cookie-generator-service
     newTag: v0
@@ -15,4 +15,4 @@ patches:
   - path: patch-env.yaml
     target:
       kind: Deployment
-      name: cookie-generator
+      name: cookie-generator-service

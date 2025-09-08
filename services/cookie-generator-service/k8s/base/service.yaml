@@ -5,7 +5,7 @@ metadata:
   namespace: kong
 spec:
   selector:
-    app: cookie-generator
+    app: cookie-generator-service
   ports:
     - name: http
       port: 80
