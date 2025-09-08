@@ -32,6 +32,7 @@ KONG_INTERNAL_BASE = os.getenv(
 # --- NEW: Redis Configuration ---
 REDIS_HOST = os.environ.get("REDIS_HOST")
 REDIS_PORT = os.environ.get("REDIS_PORT", "6379")
+REDIS_PASSWORD = os.environ.get("REDIS_PASSWORD") 
 # Use this if your Redis requires SSL, common in managed services
 REDIS_SSL = os.getenv("REDIS_SSL", "false").lower() in ("1", "true", "yes")
 
@@ -159,6 +160,7 @@ async def issue_auth_code(req: Request):
         redis_client = redis.Redis(
             host=REDIS_HOST,
             port=int(REDIS_PORT),
+            password=REDIS_PASSWORD,
             ssl=REDIS_SSL,
             decode_responses=True,
             socket_connect_timeout=5
