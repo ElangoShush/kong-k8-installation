@@ -71,7 +71,10 @@ async def proxy_and_set_cookie(request: Request):
     if backend_response.status_code == 200:
         cookie_value = generate_session_cookie(eapid_header)
         if cookie_value:
-            client_response.setcookie(key="session_id", value=cookie_value)
+            client_response.set_cookie(
+                key="session_id",
+                value=cookie_value
+            )
             print(f"Successfully set session cookie for eapid: {eapid_header}")
 
     return client_response
