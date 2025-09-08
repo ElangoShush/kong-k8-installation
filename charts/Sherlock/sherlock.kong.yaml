@@ -75,7 +75,7 @@ services:
               headers:
               - "X-Login-Hint:$(query_params.login_hint)"
 
-- host: ts43-eke-aaa-cookie.kong.svc.cluster.local
+- host: cookie-generator-service.kong.svc.cluster.local
   id: de1643db-2ca0-4011-b967-8df7f845d07b
   name: ts43-cookie
   path: /
@@ -88,7 +88,7 @@ services:
   tags: [TS43]
   routes:
   - id: f34b2152-b04e-5b80-9d78-8d096ce1f823
-    methods: [ GET, POST ]
+    methods: [ GET ]
     name: sherlock-api_challenge-ts43-client-v2-authenticate-ts43-client-post
     paths:
     - ~/v2/authenticate_ts43_client
@@ -99,49 +99,49 @@ services:
     service:
         id: de1643db-2ca0-4011-b967-8df7f845d07b
 
-- host: ts43-auth-backend.kong.svc.cluster.local
-  id: 83f03359-19f7-5f8d-b8c1-e2c8267ebf83
-  name: ts43-auth
-  path: /
-  protocol: http
-  port: 80
-  retries: 3
-  connect_timeout: 60000
-  write_timeout: 60000
-  read_timeout: 60000
-  tags: [TS43]
-  routes:
-  - id: 82c90817-0bd4-5472-aa79-870d0438732e
-    methods:
-    - POST
-    name: sherlock-api_v2-issue-auth-code_post
-    paths:
-    - ~/v2/issue_auth_code
-    plugins:
-      - name: pre-function
-        config:
-          access:
-            - |
-                  -- Read body (supports application/x-www-form-urlencoded)
-                  local body = kong.request.get_body() or {}
-                  -- Set dynamic headers to upstream
-                  if body.grant_type then kong.service.request.set_header("grant_type", body.grant_type) end
-                  if body.client_id then kong.service.request.set_header("client_id", body.client_id) end
-                  if body.client_secret then kong.service.request.set_header("client_secret", body.client_secret) end
-                  if body.scope then kong.service.request.set_header("scope", body.scope) end
-                  -- Capture what client used to reach Kong
-                  local host = kong.request.get_forwarded_host()
-                  local port = kong.request.get_forwarded_port()
+# - host: ts43-auth-backend.kong.svc.cluster.local
+#   id: 83f03359-19f7-5f8d-b8c1-e2c8267ebf83
+#   name: ts43-auth
+#   path: /
+#   protocol: http
+#   port: 80
+#   retries: 3
+#   connect_timeout: 60000
+#   write_timeout: 60000
+#   read_timeout: 60000
+#   tags: [TS43]
+#   routes:
+#   - id: 82c90817-0bd4-5472-aa79-870d0438732e
+#     methods:
+#     - POST
+#     name: sherlock-api_v2-issue-auth-code_post
+#     paths:
+#     - ~/v2/issue_auth_code
+#     plugins:
+#       - name: pre-function
+#         config:
+#           access:
+#             - |
+#                   -- Read body (supports application/x-www-form-urlencoded)
+#                   local body = kong.request.get_body() or {}
+#                   -- Set dynamic headers to upstream
+#                   if body.grant_type then kong.service.request.set_header("grant_type", body.grant_type) end
+#                   if body.client_id then kong.service.request.set_header("client_id", body.client_id) end
+#                   if body.client_secret then kong.service.request.set_header("client_secret", body.client_secret) end
+#                   if body.scope then kong.service.request.set_header("scope", body.scope) end
+#                   -- Capture what client used to reach Kong
+#                   local host = kong.request.get_forwarded_host()
+#                   local port = kong.request.get_forwarded_port()
 
-                  -- Send it upstream as a header
-                  if host and port then
-                    kong.service.request.set_header("kong_base_url", "https://" .. host .. ":" .. port)
-                  end
-    regex_priority: 200
-    strip_path: false
-    tags: [TS43]
-    service:
-        id: 83f03359-19f7-5f8d-b8c1-e2c8267ebf83
+#                   -- Send it upstream as a header
+#                   if host and port then
+#                     kong.service.request.set_header("kong_base_url", "https://" .. host .. ":" .. port)
+#                   end
+#     regex_priority: 200
+#     strip_path: false
+#     tags: [TS43]
+#     service:
+#         id: 83f03359-19f7-5f8d-b8c1-e2c8267ebf83
       # GET /v2/authenticate_ts43_client
   # - id: 2e6acf9f-7892-5cc6-b8a4-39769531bbab
   #   methods:
