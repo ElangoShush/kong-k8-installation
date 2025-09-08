@@ -1,0 +1,16 @@
+# k8s/on-perm/patch-env.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  # Target the new deployment name
+  name: cookie-generator-service
+spec:
+  template:
+    spec:
+      containers:
+        # Target the new container name
+        - name: cookie-generator
+          # Set the required environment variable for the service
+          env:
+            - name: BACKEND_API_URL
+              value: "http://34.54.169.57:80"
