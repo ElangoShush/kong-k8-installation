@@ -98,63 +98,6 @@ services:
     tags: [TS43]
     service:
         id: de1643db-2ca0-4011-b967-8df7f845d07b
-
-# - host: ts43-auth-backend.kong.svc.cluster.local
-#   id: 83f03359-19f7-5f8d-b8c1-e2c8267ebf83
-#   name: ts43-auth
-#   path: /
-#   protocol: http
-#   port: 80
-#   retries: 3
-#   connect_timeout: 60000
-#   write_timeout: 60000
-#   read_timeout: 60000
-#   tags: [TS43]
-#   routes:
-#   - id: 82c90817-0bd4-5472-aa79-870d0438732e
-#     methods:
-#     - POST
-#     name: sherlock-api_v2-issue-auth-code_post
-#     paths:
-#     - ~/v2/issue_auth_code
-#     plugins:
-#       - name: pre-function
-#         config:
-#           access:
-#             - |
-#                   -- Read body (supports application/x-www-form-urlencoded)
-#                   local body = kong.request.get_body() or {}
-#                   -- Set dynamic headers to upstream
-#                   if body.grant_type then kong.service.request.set_header("grant_type", body.grant_type) end
-#                   if body.client_id then kong.service.request.set_header("client_id", body.client_id) end
-#                   if body.client_secret then kong.service.request.set_header("client_secret", body.client_secret) end
-#                   if body.scope then kong.service.request.set_header("scope", body.scope) end
-#                   -- Capture what client used to reach Kong
-#                   local host = kong.request.get_forwarded_host()
-#                   local port = kong.request.get_forwarded_port()
-
-#                   -- Send it upstream as a header
-#                   if host and port then
-#                     kong.service.request.set_header("kong_base_url", "https://" .. host .. ":" .. port)
-#                   end
-#     regex_priority: 200
-#     strip_path: false
-#     tags: [TS43]
-#     service:
-#         id: 83f03359-19f7-5f8d-b8c1-e2c8267ebf83
-      # GET /v2/authenticate_ts43_client
-  # - id: 2e6acf9f-7892-5cc6-b8a4-39769531bbab
-  #   methods:
-  #   - GET
-  #   name: sherlock-api_authenticate-ts43-clsient-v2-authenticate-ts43-client-get
-  #   paths:
-  #   - ~/v2/authenticate_ts43_client
-  #   plugins: []
-  #   regex_priority: 200
-  #   strip_path: false
-  #   tags: [TS43]
-
-      # POST /v2/authenticate_ts43_client (challenge)
   
 - host: 34.54.169.57
   id: 83f03359-19f7-5f8d-b8c1-e2c8267ebf84
@@ -707,6 +650,17 @@ services:
     tags: [sherlock]
     service:
           id: 83f03359-19f7-5f8d-b8c1-e2c8267ebf84
+  - id: a1b2c3d4-e5f6-7890-1234-567890abcdef 
+    methods:
+    - POST
+    name: sherlock-api_authenticate-ts43-client-post
+    paths:
+    - ~/v2/authenticate_ts43_client
+    plugins: []
+    strip_path: false
+    tags: [sherlock]
+    service:
+      id: 83f03359-19f7-5f8d-b8c1-e2c8267ebf84
 upstreams: []
 
 consumers:
