@@ -9,7 +9,7 @@ resources:
 
 images:
   - name: us-central1-docker.pkg.dev/sherlock-004/ts43/cookie-generator-service
-    newTag: v5
+    newTag: v6
 
 patches:
   - path: patch-env.yaml

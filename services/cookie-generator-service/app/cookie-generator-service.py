@@ -32,7 +32,7 @@ def generate_session_cookie(eapid: str) -> str:
 
         combined_string = f"{encoded_random_part},eapid:{eapid}"
 
-s        final_value = base64.b64encode(combined_string.encode('utf-8')).decode('utf-8')
+        final_value = base64.b64encode(combined_string.encode('utf-8')).decode('utf-8')
 
         return final_value
     except Exception as e:
