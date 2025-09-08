@@ -2,7 +2,7 @@
 import os
 import sys
 import base64
-import httpx  # An async-compatible requests library
+import httpx
 from fastapi import FastAPI, Request, Response
 from fastapi.responses import PlainTextResponse
 
@@ -15,24 +15,30 @@ if not BACKEND_API_URL:
 app = FastAPI(
     title="Cookie Generator Microservice",
     description="A proxy service that adds a session cookie on successful authentication.",
-    version="1.0.0"
+    version="2.0.0" # Updated version
 )
 
+# --- vvvvvv THIS FUNCTION HAS BEEN MODIFIED vvvvvv ---
 def generate_session_cookie(eapid: str) -> str:
+    """
+    Generates a cookie value in the new format:
+    urlsafe_base64(random_bytes(32)),eapid:(eapid_value)
+    """
     if not isinstance(eapid, str) or not eapid:
         return ""
 
     try:
         random_bytes = os.urandom(32)
-        eapid_bytes = eapid.encode('utf-8')
-        separator_bytes = b':'
-        combined_bytes = random_bytes + separator_bytes + eapid_bytes
-        encoded_cookie_value = base64.b64encode(combined_bytes).decode('utf-8')
-        return encoded_cookie_value
+
+        encoded_random_part = base64.urlsafe_b64encode(random_bytes).decode('utf-8')
+
+        encoded_random_part = encoded_random_part.rstrip('=')
+
+        return f"{encoded_random_part},eapid:{eapid}"
     except Exception as e:
-        # In a real app, you would log this error.
         print(f"Error generating cookie: {e}")
         return ""
+
 
 @app.get("/healthz")
 def healthz():
@@ -70,13 +76,7 @@ async def proxy_and_set_cookie(request: Request):
     if backend_response.status_code == 200:
         cookie_value = generate_session_cookie(eapid_header)
         if cookie_value:
-            client_response.set_cookie(
-                key="session_id",
-                value=cookie_value,
-                httponly=True,
-                secure=True,
-                samesite='lax'
-            )
+            client_response.set_cookie(cookie_value)
             print(f"Successfully set session cookie for eapid: {eapid_header}")
 
     return client_response
