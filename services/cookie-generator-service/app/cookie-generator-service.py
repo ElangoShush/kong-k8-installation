@@ -15,24 +15,30 @@ if not BACKEND_API_URL:
 app = FastAPI(
     title="Cookie Generator Microservice",
     description="A proxy service that adds a session cookie on successful authentication.",
-    version="2.0.0" # Updated version
+    version="3.0.0" # Updated version
 )
 
 def generate_session_cookie(eapid: str) -> str:
+    """
+    Generates a cookie value by Base64 encoding the entire combined string:
+    base64( urlsafe_base64(random_bytes(32)),eapid:(eapid_value) )
+    """
     if not isinstance(eapid, str) or not eapid:
         return ""
 
     try:
         random_bytes = os.urandom(32)
+        encoded_random_part = base64.urlsafe_b64encode(random_bytes).decode('utf-8').rstrip('=')
 
-        encoded_random_part = base64.urlsafe_b64encode(random_bytes).decode('utf-8')
+        combined_string = f"{encoded_random_part},eapid:{eapid}"
 
-        encoded_random_part = encoded_random_part.rstrip('=')
+s        final_value = base64.b64encode(combined_string.encode('utf-8')).decode('utf-8')
 
-        return f"{encoded_random_part},eapid:{eapid}"
+        return final_value
     except Exception as e:
         print(f"Error generating cookie: {e}")
         return ""
+# --- ^^^^^^ THIS FUNCTION HAS BEEN MODIFIED ^^^^^^ ---
 
 
 @app.get("/healthz")
@@ -58,7 +64,6 @@ async def proxy_and_set_cookie(request: Request):
                 content=body,
                 timeout=10.0
             )
-
         except httpx.RequestError as e:
             return PlainTextResponse(f"Bad Gateway: Upstream service is unavailable. Error: {e}", status_code=502)
 
@@ -71,10 +76,7 @@ async def proxy_and_set_cookie(request: Request):
     if backend_response.status_code == 200:
         cookie_value = generate_session_cookie(eapid_header)
         if cookie_value:
-            client_response.set_cookie(
-                key="session_id",
-                value=cookie_value
-            )
+            client_response.setcookie(key="setcookie", value=cookie_value)
             print(f"Successfully set session cookie for eapid: {eapid_header}")
 
     return client_response
