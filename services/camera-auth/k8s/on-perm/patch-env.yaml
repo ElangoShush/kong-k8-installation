@@ -19,5 +19,7 @@ spec:
                   key: password
             - name: KONG_INTERNAL_OAUTH_URL
               value: "https://kong-kong-proxy.kong.svc.cluster.local:443"
+            - name: KONG_ADMIN_URL
+              value: "https://kong-kong-admin.kong.svc.cluster.local:8444"
             - name: EXTERNAL_AUTH_URL
-              value: "http://34.54.169.57/v0/authenticate_user" #Update here sherlock LB
+              value: "http://34.54.169.57/v0/authenticate_user" 
