@@ -21,5 +21,7 @@ spec:
               value: "https://kong-kong-proxy.kong.svc.cluster.local:443"
             - name: KONG_ADMIN_URL
               value: "https://kong-kong-admin.kong.svc.cluster.local:8444"
+            - name: ISSUE_JWT_URL
+              value: "http://jwt-issuer-service.kong.svc.cluster.local:80"
             - name: EXTERNAL_AUTH_URL
               value: "http://34.54.169.57/v0/authenticate_user" 

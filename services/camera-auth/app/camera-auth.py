@@ -21,6 +21,7 @@ EXTERNAL_AUTH_URL = os.environ["EXTERNAL_AUTH_URL"].strip()
 KONG_INTERNAL_BASE = os.environ["KONG_INTERNAL_OAUTH_URL"].strip()
 KONG_ADMIN_URL = os.environ.get("KONG_ADMIN_URL")
 KONG_ADMIN_API_KEY = os.environ.get("KONG_ADMIN_API_KEY")
+ISSUE_JWT_URL = os.environ.get("ISSUE_JWT_URL")
 
 
 # --- Redis Configuration ---
@@ -174,34 +175,66 @@ def handle_authorization(
 
 @app.post("/token")
 def handle_custom_token_exchange(code: str = Header(...)):
+    if not ISSUE_JWT_URL:
+        log.error("FATAL: ISSUE_JWT_URL environment variable is not set.")
+        raise HTTPException(status_code=500, detail="Service is not configured correctly.")
+        
     try:
         log.info(f"Received custom token exchange request.")
+        
+        # --- Step 1: Validate code and get context from Redis ---
         auth_data = validate_and_get_data_from_code(code)
         if not auth_data:
             raise HTTPException(status_code=400, detail="Invalid, expired, or previously used code.")
         
         client_id = auth_data.get("client_id")
         client_secret = auth_data.get("client_secret")
+        authenticated_msisdn = auth_data.get("msisdn") # login_hint
 
-        if not client_id or not client_secret:
+        if not all([client_id, client_secret, authenticated_msisdn]):
             raise HTTPException(status_code=500, detail="Stored authorization context is incomplete.")
 
         log.info(f"Auth code validated successfully for client_id: {client_id}")
 
+        # --- Step 2: Get the initial access token from Kong ---
         kong_token_url = KONG_INTERNAL_BASE.rstrip("/") + "/oauth2/token"
         kong_payload = { "grant_type": "client_credentials", "client_id": client_id, "client_secret": client_secret }
-        
-        log.info(f"Calling Kong's internal token endpoint: {kong_token_url}")
+        log.info(f"Calling Kong's internal token endpoint to get an intermediate token.")
         kong_resp = requests.post(kong_token_url, data=kong_payload, timeout=REQ_TIMEOUT, verify=VERIFY_TLS)
+        
+        if kong_resp.status_code != 200:
+            log.error(f"Failed to get intermediate token from Kong. Status: {kong_resp.status_code}, Body: {kong_resp.text}")
+            try: response_content = kong_resp.json()
+            except requests.exceptions.JSONDecodeError: response_content = kong_resp.text
+            raise HTTPException(status_code=502, detail={"error": "Failed to get intermediate token", "upstream_response": response_content})
 
-        log.info(f"Received response from Kong token endpoint. Status: {kong_resp.status_code}")
-        try: response_content = kong_resp.json()
-        except requests.exceptions.JSONDecodeError: response_content = kong_resp.text
+        kong_token_data = kong_resp.json()
+        access_token = kong_token_data.get("access_token")
+        if not access_token:
+            raise HTTPException(status_code=502, detail="Intermediate token request succeeded but no access_token was found in the response.")
+        
+        log.info("Successfully retrieved intermediate access token from Kong.")
 
-        return JSONResponse(status_code=kong_resp.status_code, content=response_content)
+        # --- Step 3: Call the /issue-jwt microservice with the Kong token ---
+        headers = {'Authorization': f'Bearer {access_token}'}
+        params = {'login_hint': authenticated_msisdn}
+        
+        log.info(f"Calling final JWT issuer service at {ISSUE_JWT_URL} for login_hint: {authenticated_msisdn}")
+        final_jwt_resp = requests.get(ISSUE_JWT_URL, headers=headers, params=params, timeout=REQ_TIMEOUT, verify=VERIFY_TLS)
+
+        # --- Step 4: Return the final JWT response to the original client ---
+        log.info(f"Received response from final JWT issuer. Status: {final_jwt_resp.status_code}")
+        try:
+            final_response_content = final_jwt_resp.json()
+        except requests.exceptions.JSONDecodeError:
+            final_response_content = final_jwt_resp.text
+        
+        return JSONResponse(status_code=final_jwt_resp.status_code, content=final_response_content)
 
     except HTTPException: raise
+    except requests.RequestException as e:
+        log.exception("HTTP request error during token exchange orchestration")
+        raise HTTPException(status_code=503, detail=f"A downstream service is unavailable: {e}")
     except Exception as e:
         log.exception("An unexpected error occurred during token exchange")
         raise HTTPException(status_code=500, detail="An internal server error occurred")
-

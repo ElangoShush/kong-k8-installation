@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
         - name: api
-          image: us-central1-docker.pkg.dev/sherlock-004/ts43/camera-auth:v17
+          image: us-central1-docker.pkg.dev/sherlock-004/ts43/camera-auth:v18
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
