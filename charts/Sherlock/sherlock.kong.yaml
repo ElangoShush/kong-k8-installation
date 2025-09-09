@@ -569,13 +569,14 @@ services:
         key_claim_name: iss
         claims_to_verify: [ exp ]
         run_on_preflight: true
-        claims_to_headers:
-          - "login_hint:phonenumber"
     - name: request-transformer
       config:
-        rename:
+        add:
           headers:
-          - X-Credential-Jwt-Claim-login_hint:phonenumber
+            - "phonenumber:$(header.X-Credential-Jwt-Claim-login_hint)"
+        remove:
+          headers:
+            - "X-Credential-Jwt-Claim-login_hint"
     regex_priority: 200
     strip_path: false
     tags: [sherlock]
