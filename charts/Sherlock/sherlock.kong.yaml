@@ -526,11 +526,34 @@ services:
         key_claim_name: iss
         claims_to_verify: [ exp ]
         run_on_preflight: true
-    - name: request-transformer
+    - name: pre-function
       config:
-        rename:
-          headers:
-          - X-Credential-Jwt-Claim-login_hint:phonenumber
+        access:
+          - |
+            return function()
+            local auth = kong.request.get_header("authorization")
+            if not auth then return end
+            local token = auth:match("Bearer%s+(.+)")
+            if not token then return end
+
+            -- extract base64url payload (middle segment)
+            local payload_b64 = token:match("%.(.-)%.")
+            if not payload_b64 then return end
+
+            -- base64url -> base64 (replace chars + pad)
+            payload_b64 = payload_b64:gsub("-", "+"):gsub("_", "/")
+            local pad = #payload_b64 % 4
+            if pad > 0 then payload_b64 = payload_b64 .. string.rep("=", 4 - pad) end
+
+            local payload_json = ngx.decode_base64(payload_b64)
+            if not payload_json then return end
+
+            -- find "login_hint":"<value>" without JSON libs
+            local login_hint = payload_json:match([["login_hint"%s*:%s*"(.-)"]])
+            if login_hint and #login_hint > 0 then
+              kong.service.request.set_header("phonenumber", login_hint)
+            end
+            end
     regex_priority: 200
     strip_path: false
     tags: [sherlock]
@@ -569,11 +592,34 @@ services:
         key_claim_name: iss
         claims_to_verify: [ exp ]
         run_on_preflight: true
-    - name: request-transformer
+    - name: pre-function
       config:
-        rename:
-          headers:
-          - X-Credential-Jwt-Claim-login_hint:phonenumber
+        access:
+          - |
+            return function()
+            local auth = kong.request.get_header("authorization")
+            if not auth then return end
+            local token = auth:match("Bearer%s+(.+)")
+            if not token then return end
+
+            -- extract base64url payload (middle segment)
+            local payload_b64 = token:match("%.(.-)%.")
+            if not payload_b64 then return end
+
+            -- base64url -> base64 (replace chars + pad)
+            payload_b64 = payload_b64:gsub("-", "+"):gsub("_", "/")
+            local pad = #payload_b64 % 4
+            if pad > 0 then payload_b64 = payload_b64 .. string.rep("=", 4 - pad) end
+
+            local payload_json = ngx.decode_base64(payload_b64)
+            if not payload_json then return end
+
+            -- find "login_hint":"<value>" without JSON libs
+            local login_hint = payload_json:match([["login_hint"%s*:%s*"(.-)"]])
+            if login_hint and #login_hint > 0 then
+              kong.service.request.set_header("phonenumber", login_hint)
+            end
+            end
     regex_priority: 200
     strip_path: false
     tags: [sherlock]
