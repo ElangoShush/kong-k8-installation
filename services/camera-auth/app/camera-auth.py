@@ -51,9 +51,8 @@ def get_redis_client():
     return _redis_client
 
 
-# --- Authorization Code Logic ---
+# --- Authorization Code Logic (No changes here) ---
 def generate_auth_code(login_hint: str) -> str:
-    """Generates a Base64-encoded auth code."""
     timestamp = str(int(time.time()))
     internal_token = f"{login_hint}:{timestamp}"
     raw_data = f"token={internal_token}&login_hint={login_hint}"
@@ -61,17 +60,13 @@ def generate_auth_code(login_hint: str) -> str:
     log.info(f"Generated auth code. Decoded payload will be: '{raw_data}'")
     return auth_code
 
-# MODIFIED: Now stores client_id and client_secret
 def store_auth_code(auth_code: str, msisdn: str, provision_key: str, client_id: str, client_secret: str) -> bool:
-    """Store the auth code and all necessary context in Redis as a JSON object."""
     try:
         redis_client = get_redis_client()
         redis_key = f"auth_code:{auth_code}"
         redis_value = json.dumps({
-            "msisdn": msisdn,
-            "provision_key": provision_key,
-            "client_id": client_id,
-            "client_secret": client_secret
+            "msisdn": msisdn, "provision_key": provision_key,
+            "client_id": client_id, "client_secret": client_secret
         })
         redis_client.setex(redis_key, REDIS_TTL, redis_value)
         log.info(f"Successfully stored auth context in Redis for client_id: {client_id}.")
@@ -81,7 +76,6 @@ def store_auth_code(auth_code: str, msisdn: str, provision_key: str, client_id: 
         return False
 
 def validate_and_get_data_from_code(auth_code: str) -> dict | None:
-    """Validates the auth code against Redis. If valid, deletes it and returns stored data."""
     if not auth_code: return None
     try:
         redis_client = get_redis_client()
@@ -103,8 +97,8 @@ def validate_and_get_data_from_code(auth_code: str) -> dict | None:
 
 app = FastAPI(
     title="Camera Authorizer Service",
-    description="Orchestrates external authentication and token exchange.",
-    version="1.5.0"
+    description="Orchestrates external authentication and token exchange with explicit paths.",
+    version="1.6.0"
 )
 
 @app.get("/healthz")
@@ -116,12 +110,11 @@ def healthz():
         log.error(f"Health check failed: {e}")
         raise HTTPException(status_code=503, detail=f"Service is unhealthy: {str(e)}")
 
-# MODIFIED: Now accepts client_secret to store it in Redis
-@app.post("/")
+@app.post("/authorizer")
 def handle_authorization(
-    # ... other form parameters ...
+    # ... form parameters are the same ...
     client_id: str = Form(...),
-    client_secret: str = Form(...), # IMPORTANT: See security note below
+    client_secret: str = Form(...),
     redirect_uri: str = Form(...),
     provision_key: str = Form(...),
     login_hint: str = Form(...),
@@ -148,7 +141,6 @@ def handle_authorization(
         log.info("External authentication successful.")
         custom_auth_code = generate_auth_code(login_hint)
         
-        # Store all required context for the new /token endpoint
         if not store_auth_code(custom_auth_code, login_hint, provision_key, client_id, client_secret):
             raise HTTPException(status_code=503, detail="Failed to store authorization context. Please try again later.")
             
@@ -164,19 +156,12 @@ def handle_authorization(
         log.exception("An unexpected error occurred during authorization")
         raise HTTPException(status_code=500, detail="An internal server error occurred")
 
-# NEW: Custom /token endpoint
 @app.post("/token")
 def handle_custom_token_exchange(
     code: str = Header(...)
 ):
-    """
-    Validates the custom code from Redis and proxies a client_credentials
-    grant flow to Kong's main /oauth2/token endpoint.
-    """
     try:
         log.info(f"Received custom token exchange request.")
-        
-        # --- Step 1: Validate custom authorization code and get context ---
         auth_data = validate_and_get_data_from_code(code)
         if not auth_data:
             raise HTTPException(status_code=400, detail="Invalid, expired, or previously used code.")
@@ -189,18 +174,12 @@ def handle_custom_token_exchange(
 
         log.info(f"Auth code validated successfully for client_id: {client_id}")
 
-        # --- Step 2: Call Kong's internal /oauth2/token endpoint ---
         kong_token_url = KONG_INTERNAL_BASE.rstrip("/") + "/oauth2/token"
-        kong_payload = {
-            "grant_type": "client_credentials",
-            "client_id": client_id,
-            "client_secret": client_secret,
-        }
+        kong_payload = { "grant_type": "client_credentials", "client_id": client_id, "client_secret": client_secret }
         
         log.info(f"Calling Kong's internal token endpoint: {kong_token_url}")
         kong_resp = requests.post(kong_token_url, data=kong_payload, timeout=REQ_TIMEOUT, verify=VERIFY_TLS)
 
-        # --- Step 3: Forward Kong's response (token or error) to the client ---
         log.info(f"Received response from Kong token endpoint. Status: {kong_resp.status_code}")
         try: response_content = kong_resp.json()
         except requests.exceptions.JSONDecodeError: response_content = kong_resp.text
