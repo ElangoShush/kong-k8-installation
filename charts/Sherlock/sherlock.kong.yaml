@@ -107,7 +107,7 @@ services:
   tags: [TS43]
   routes:
   - id: f34b2152-b04e-5b80-9d78-8d096ce1f823
-    methods: [ GET ]
+    methods: [ GET, POST ]
     name: sherlock-api_challenge-ts43-client-v2-authenticate-ts43-client-post
     paths:
     - ~/v2/authenticate_ts43_client
@@ -715,17 +715,17 @@ services:
     tags: [sherlock]
     service:
           id: 83f03359-19f7-5f8d-b8c1-e2c8267ebf84
-  - id: a1b2c3d4-e5f6-7890-1234-567890abcdef 
-    methods:
-    - POST
-    name: sherlock-api_authenticate-ts43-client-post
-    paths:
-    - ~/v2/authenticate_ts43_client
-    plugins: []
-    strip_path: false
-    tags: [sherlock]
-    service:
-      id: 83f03359-19f7-5f8d-b8c1-e2c8267ebf84
+  # - id: a1b2c3d4-e5f6-7890-1234-567890abcdef 
+  #   methods:
+  #   - POST
+  #   name: sherlock-api_authenticate-ts43-client-post
+  #   paths:
+  #   - ~/v2/authenticate_ts43_client
+  #   plugins: []
+  #   strip_path: false
+  #   tags: [sherlock]
+  #   service:
+  #     id: 83f03359-19f7-5f8d-b8c1-e2c8267ebf84
 upstreams: []
 
 consumers:
