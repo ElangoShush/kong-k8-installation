@@ -1,52 +1,113 @@
 #!/usr/bin/env python3
 import os
 import logging
+import time
+import base64
 from urllib.parse import urlparse, parse_qs
 from typing import Dict, Any
 
 import requests
+import redis
 from fastapi import FastAPI, Response, Form, HTTPException
 from fastapi.responses import JSONResponse
 
-# (Keep all configuration and logging setup the same)
-# ...
+# --- Configuration and Logging ---
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
 log = logging.getLogger("camera-auth")
 VERIFY_TLS = os.getenv("VERIFY_TLS", "false").lower() in ("1", "true", "yes")
 REQ_TIMEOUT = float(os.getenv("HTTP_TIMEOUT_SECONDS", "10"))
-#KONG_INTERNAL_BASE = os.getenv("KONG_INTERNAL_OAUTH_URL", "https://kong-kong-proxy.kong.svc.cluster.local:443").strip()
-KONG_INTERNAL_BASE = os.environ["KONG_INTERNAL_OAUTH_URL"].strip()
-#EXTERNAL_AUTH_URL = os.getenv("EXTERNAL_AUTH_URL", "http://34.54.169.57/v0/authenticate_user").strip()
+
+# Kong URL is no longer needed for authorization, but may be needed for token endpoint
+# KONG_INTERNAL_BASE = os.environ["KONG_INTERNAL_OAUTH_URL"].strip()
 EXTERNAL_AUTH_URL = os.environ["EXTERNAL_AUTH_URL"].strip()
+
+# --- NEW: Redis Configuration ---
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
+REDIS_TTL = int(os.getenv("REDIS_TTL", 300))  # Code expires in 300 seconds (5 minutes)
+
+# --- NEW: Redis Client (Singleton Pattern) ---
+_redis_client = None
+
+def get_redis_client():
+    """Initializes and returns a Redis client, reusing an existing connection."""
+    global _redis_client
+    if _redis_client is None:
+        try:
+            log.info(f"Connecting to Redis at {REDIS_HOST}:{REDIS_PORT}")
+            _redis_client = redis.StrictRedis(
+                host=REDIS_HOST,
+                port=REDIS_PORT,
+                decode_responses=True,
+                socket_connect_timeout=2
+            )
+            # Ping to ensure connection is alive
+            _redis_client.ping()
+            log.info("Successfully connected to Redis.")
+        except redis.exceptions.ConnectionError as e:
+            log.error(f"Could not connect to Redis: {e}")
+            _redis_client = None # Reset on failure
+            raise
+    return _redis_client
+
+
+# --- NEW: Authorization Code Logic from Lambda ---
+def generate_auth_code(login_hint: str) -> str:
+    """
+    Generate a time-stamped, base64-encoded auth code.
+    This makes the code temporary and ties it to the user.
+    """
+    timestamp = str(int(time.time()))
+    raw_data = f"{login_hint}:{timestamp}"
+    auth_code = base64.urlsafe_b64encode(raw_data.encode()).decode()
+    log.info(f"Generated auth code for login_hint: {login_hint}")
+    return auth_code
+
+def store_auth_code(msisdn: str, auth_code: str) -> bool:
+    """Store the auth code in Redis with a specific TTL."""
+    try:
+        redis_client = get_redis_client()
+        if not redis_client:
+            log.error("Cannot store auth code, Redis client is not available.")
+            return False
+
+        # The key is the auth code itself, value is the user identifier (msisdn)
+        redis_key = f"auth_code:{auth_code}"
+        redis_client.setex(redis_key, REDIS_TTL, msisdn)
+        log.info(f"Successfully stored auth code in Redis with TTL {REDIS_TTL}s.")
+        return True
+    except redis.RedisError as e:
+        log.error(f"Redis error while storing auth code: {e}")
+        return False
 
 
 app = FastAPI(
     title="Camera Authorizer Service",
-    description="Orchestrates external authentication and the Kong OAuth2 flow.",
-    version="1.0.0"
+    description="Orchestrates external authentication and generates custom authorization codes.",
+    version="1.1.0"
 )
 
-# (Keep /healthz and parse_code_from_uri functions the same)
-# ...
 @app.get("/healthz")
 def healthz():
-    return {"status": "ok"}
-
-def parse_code_from_uri(uri: str) -> str | None:
+    """Health check endpoint."""
     try:
-        parsed_url = urlparse(uri)
-        query_params = parse_qs(parsed_url.query)
-        return query_params.get("code", [None])[0]
+        # Optional: Add Redis connection check to healthz
+        redis_client = get_redis_client()
+        if redis_client:
+            redis_client.ping()
+            return {"status": "ok", "redis_connection": "ok"}
+        else:
+             return {"status": "ok", "redis_connection": "disconnected"}
     except Exception as e:
-        log.error(f"Failed to parse code from URI: {uri}. Error: {e}")
-        return None
+        log.error(f"Health check failed: {e}")
+        raise HTTPException(status_code=503, detail="Service is unhealthy")
 
-# --- Main Authorization Endpoint (with improved error handling) ---
+
+# --- Main Authorization Endpoint (Updated Logic) ---
 @app.post("/")
 def handle_authorization(
     response: Response,
-    # (Keep all Form parameters the same)
-    # ...
+    # Form parameters from Kong
     response_type: str = Form(...),
     client_id: str = Form(...),
     redirect_uri: str = Form(...),
@@ -80,68 +141,43 @@ def handle_authorization(
             verify=VERIFY_TLS
         )
         
-        # --- NEW: Improved error forwarding ---
         if external_resp.status_code != 200:
             log.warning(f"External auth failed with status {external_resp.status_code}: {external_resp.text}")
-            
-            # Try to parse the JSON error from the external service
             try:
                 error_detail = external_resp.json()
             except requests.exceptions.JSONDecodeError:
                 error_detail = {"detail": external_resp.text or "Unknown error from external service"}
-
-            # Forward the original status code and detail message
             raise HTTPException(
-                status_code=external_resp.status_code, 
+                status_code=external_resp.status_code,
                 detail=error_detail.get("detail", error_detail)
             )
 
         log.info("External authentication successful.")
 
-        # --- Step 2: Call Kong's internal /oauth2/authorize endpoint ---
-        kong_authorize_url = KONG_INTERNAL_BASE.rstrip("/") + "/oauth2/authorize"
-        kong_payload = {
-            "response_type": response_type,
-            "client_id": client_id,
-            "redirect_uri": redirect_uri,
-            "scope": scope,
-            "provision_key": provision_key,
-            "authenticated_userid": authenticated_userid,
-            "login_hint": login_hint
-        }
-        kong_payload = {k: v for k, v in kong_payload.items() if v is not None}
+        # --- Step 2: Generate and Store Custom Authorization Code ---
+        # This replaces the call to Kong's /oauth2/authorize endpoint.
+        custom_auth_code = generate_auth_code(login_hint)
+        
+        if not store_auth_code(login_hint, custom_auth_code):
+            # This is a critical failure. If we can't store the code, we can't validate it later.
+            raise HTTPException(
+                status_code=503, # Service Unavailable
+                detail="Failed to store authorization code. Please try again later."
+            )
 
-        log.info(f"Calling Kong's internal authorize endpoint: {kong_authorize_url}")
-        kong_resp = requests.post(
-            kong_authorize_url,
-            data=kong_payload,
-            timeout=REQ_TIMEOUT,
-            verify=VERIFY_TLS
-        )
+        # --- Step 3: Success. Construct the redirect URI and return it ---
+        # We manually append our custom code to the client's redirect_uri.
+        final_redirect_uri = f"{redirect_uri}?code={custom_auth_code}"
+        
+        log.info(f"Successfully generated code. Returning redirect URI: {final_redirect_uri}")
+        return JSONResponse(content={"redirect_uri": final_redirect_uri})
 
-        if kong_resp.status_code >= 400:
-            log.error(f"Kong returned an error. Status: {kong_resp.status_code}. Response: {kong_resp.text}")
-            # Forward the exact error from Kong
-            return JSONResponse(status_code=kong_resp.status_code, content={"error_detail": kong_resp.text})
-
-        # --- Step 3: Success. Extract code and return redirect URI ---
-        response_data = kong_resp.json()
-        redirect_uri_from_kong = response_data.get("redirect_uri")
-        if not redirect_uri_from_kong or not parse_code_from_uri(redirect_uri_from_kong):
-            log.error(f"Kong response is missing or malformed: {response_data}")
-            raise HTTPException(status_code=502, detail="Invalid response from Kong authorize endpoint")
-
-        log.info("Successfully obtained auth code from Kong.")
-        return JSONResponse(content={"redirect_uri": redirect_uri_from_kong})
-
-    # --- NEW: Restructured Exception Handling ---
     except requests.RequestException as e:
         log.exception("HTTP request error during authorization flow")
         raise HTTPException(status_code=503, detail=f"Service unavailable: {e}")
     except HTTPException:
-        # Re-raise HTTPException so FastAPI can handle it
+        # Re-raise HTTPException so FastAPI can handle it correctly
         raise
     except Exception as e:
-        # This now only catches truly unexpected errors
-        log.exception("An unexpected error occurred")
+        log.exception("An unexpected error occurred during authorization")
         raise HTTPException(status_code=500, detail="An internal server error occurred")
