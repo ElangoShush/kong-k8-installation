@@ -118,6 +118,18 @@ services:
     service:
         id: de1643db-2ca0-4011-b967-8df7f845d07b
   
+  - id: g95c2987-a90t-1g78-1n23-8d096cd8s923
+    methods: [ GET ]
+    name: sherlock-api_challenge-ts43-client-v2-authenticate-ts43-client-post
+    paths:
+    - ~/v2/ts43_operator_token
+    plugins: []
+    regex_priority: 200
+    strip_path: false
+    tags: [TS43]
+    service:
+        id: de1643db-2ca0-4011-b967-8df7f845d07b
+
 - host: 34.54.169.57
   id: 83f03359-19f7-5f8d-b8c1-e2c8267ebf84
   name: sherlock-api
