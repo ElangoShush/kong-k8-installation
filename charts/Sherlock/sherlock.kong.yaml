@@ -120,7 +120,7 @@ services:
   
   - id: g95c2987-a90t-1g78-1n23-8d096cd8s923
     methods: [ GET ]
-    name: sherlock-api_challenge-ts43-client-v2-authenticate-ts43-client-post
+    name: sherlock-api_-ts43-client-v2-issue-JWT
     paths:
     - ~/v2/ts43_operator_token
     plugins: []
