@@ -187,7 +187,7 @@ async def proxy_and_generate_authcode(request: Request):
         return PlainTextResponse("Bad Gateway: Upstream service returned a non-JSON response.", status_code=502)
 
 @app.get("/v2/ts43_operator_token")
-async def get_operator_token(client_id: str = Header(...)):
+async def get_operator_token(client_id: str = Header(..., alias="client_id")):
     print(f"Received token request for client_id: {client_id}")
     
     # 1. Get the client_secret from Kong Admin API
@@ -218,3 +218,4 @@ async def get_operator_token(client_id: str = Header(...)):
     except httpx.RequestError as e:
         print(f"Error calling Kong token endpoint: {e}")
         raise HTTPException(status_code=503, detail="Service unavailable: Could not connect to the authentication server.")
+
