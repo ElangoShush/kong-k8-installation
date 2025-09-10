@@ -38,7 +38,7 @@ kubectl -n kong get pods,svc -l app.kubernetes.io/name=postgresql
 Quick DB test
 kubectl -n kong run psql-client --rm -it --image=postgres:15 --restart=Never \
   --env=PGPASSWORD=supersecret-kong -- \
-  psql "host=kong-pg-postgresql.kong.svc.cluster.local port=5432 dbname=kong user=kong" \
+  psql "host=postgres-kong.kong.svc.cluster.local port=5432 dbname=kong user=kong" \
   -c "select now(), current_user, current_database();"
 
 # Add the Enterprise License
@@ -60,8 +60,12 @@ In the folder containing apps/kong/on-perm/deployment-patch.yaml (HelmChart) con
   3. NodePorts for Proxy/Admin/Manager
   4. Migrations enabled
 
-Apply:
+Add the change the helm configuration here:
+  1. pg_host
+  2. admin_gui_url
+  3. admin_gui_api_url
 
+Apply:
 kubectl apply -n kong -k apps/kong/on-perm
 
 CHeck for Ports 
@@ -107,11 +111,11 @@ kubectl apply -k ts43-redis/k8s/on-perm
 kubectl -n kong get pods,svc | grep ts43-redis
 
 # docker build and push cookie-generator-service  Image to sherlock-004:
-cd kong-k8-installation/services/ts43-auth/app
+cd kong-k8-installation/services/cookie-generator-service/app
 
 sudo docker buildx build \
   --platform linux/amd64 \
-  -t us-central1-docker.pkg.dev/sherlock-004/ts43/cookie-generator-service:v2 \
+  -t us-central1-docker.pkg.dev/sherlock-004/ts43/cookie-generator-service:v8 \
   --push .
 
 cd kong-k8-installation
