@@ -27,7 +27,7 @@ if missing_vars:
 app = FastAPI(
     title="TS43 Auth & Token Service",
     description="A service to issue cookies, auth_codes, and final JWT tokens.",
-    version="3.1.0" # Updated version
+    version="3.2.0" # Updated version
 )
 
 # --- Helper Functions ---
@@ -74,14 +74,10 @@ def extract_eapid_from_header(header_value: str, header_name: str) -> str | None
         return None
 
 async def get_consumer_details_from_kong(client_id: str) -> Tuple[str, str] | None:
-    """
-    (Updated) Fetches both the client_secret and consumer_username from Kong's Admin API.
-    """
     oauth2_url = f"{KONG_ADMIN_URL.rstrip('/')}/oauth2"
     params = {"client_id": client_id}
     try:
         async with httpx.AsyncClient(verify=False) as client:
-            # First call to get secret and consumer ID
             print(f"Querying Kong Admin API for secret: {oauth2_url}")
             oauth_resp = await client.get(oauth2_url, params=params, timeout=5.0)
             oauth_resp.raise_for_status()
@@ -99,7 +95,6 @@ async def get_consumer_details_from_kong(client_id: str) -> Tuple[str, str] | No
                 print(f"Error: Incomplete credential data for client_id: {client_id}")
                 return None
             
-            # Second call to get consumer username from its ID
             consumer_url = f"{KONG_ADMIN_URL.rstrip('/')}/consumers/{consumer_id}"
             print(f"Querying Kong Admin API for username: {consumer_url}")
             consumer_resp = await client.get(consumer_url, timeout=5.0)
@@ -172,13 +167,11 @@ async def get_final_jwt_token(
 ):
     print(f"Received token request for client_id: {client_id}")
     
-    # 1. Get consumer details (secret and username) from Kong
     consumer_details = await get_consumer_details_from_kong(client_id)
     if not consumer_details:
         raise HTTPException(status_code=401, detail="Invalid client_id or credentials not found.")
     client_secret, consumer_username = consumer_details
 
-    # 2. Get Kong access token
     kong_token_url = f"{KONG_INTERNAL_OAUTH_URL.rstrip('/')}/oauth2/token"
     kong_payload = {"grant_type": "client_credentials", "client_id": client_id, "client_secret": client_secret}
     
@@ -188,7 +181,6 @@ async def get_final_jwt_token(
             kong_resp = await client.post(kong_token_url, data=kong_payload, timeout=10.0)
         
         if kong_resp.status_code != 200:
-            print(f"Failed to get Kong token. Status: {kong_resp.status_code}, Body: {kong_resp.text}")
             raise HTTPException(status_code=502, detail="Failed to retrieve intermediate token from auth server.")
         
         kong_access_token = kong_resp.json().get("access_token")
@@ -197,36 +189,40 @@ async def get_final_jwt_token(
         
         print("Successfully retrieved Kong access token.")
 
-        # 3. Extract eapid from the auth_code header for the final step
         eapid_for_jwt = extract_eapid_from_header(auth_code, "auth_code")
         if not eapid_for_jwt:
             raise HTTPException(status_code=400, detail="Invalid or malformed auth_code header.")
 
-        # 4. Call the final JWT issuer service with all required headers and query parameters
         jwt_issuer_url = f"{ISSUE_JWT_URL.rstrip('/')}"
         jwt_headers = {
             'Authorization': f'Bearer {kong_access_token}',
             'X-Consumer-Username': consumer_username,
             'X-Login-Hint': eapid_for_jwt
         }
-        # THIS IS THE FIX: Add the login_hint as a query parameter as well.
         jwt_params = {'login_hint': eapid_for_jwt}
 
         async with httpx.AsyncClient(verify=False) as client:
             print(f"Requesting final JWT from {jwt_issuer_url} for consumer: {consumer_username}")
-            final_jwt_resp = await client.get(
-                jwt_issuer_url,
-                headers=jwt_headers,
-                params=jwt_params, # Pass the eapid as a query parameter
-                timeout=10.0
-            )
+            final_jwt_resp = await client.get(jwt_issuer_url, headers=jwt_headers, params=jwt_params, timeout=10.0)
 
-        # 5. Return the response from the JWT issuer directly to the client
-        return Response(
-            content=final_jwt_resp.content,
-            status_code=final_jwt_resp.status_code,
-            headers={"Content-Type": "application/json"}
-        )
+        if final_jwt_resp.status_code != 200:
+            return Response(
+                content=final_jwt_resp.content,
+                status_code=final_jwt_resp.status_code,
+                headers={"Content-Type": "application/json"}
+            )
+        
+        try:
+            final_jwt_json = final_jwt_resp.json()
+            final_jwt_json["token_type"] = "bearer"
+            final_jwt_json["expires_in"] = 7200 # As requested, fixed value
+            
+            print("Successfully added token_type and expires_in to the final JWT response.")
+            return JSONResponse(content=final_jwt_json, status_code=200)
+        
+        except json.JSONDecodeError:
+            # This is an edge case in case the JWT issuer returns 200 OK but not valid JSON
+            return PlainTextResponse("Bad Gateway: Final token issuer returned invalid JSON.", status_code=502)
 
     except httpx.RequestError as e:
         print(f"HTTP Error during token exchange: {e}")
