@@ -4,19 +4,33 @@ import base64
 import time
 import httpx
 import json
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request, Response, HTTPException, Header
 from fastapi.responses import JSONResponse, PlainTextResponse
 
 # --- Environment Variables ---
+# For proxying requests
 BACKEND_API_URL = os.getenv("BACKEND_API_URL")
+# For fetching client_secret and getting a token same as cookie auth
+KONG_ADMIN_URL = os.getenv("KONG_ADMIN_URL")
+KONG_INTERNAL_OAUTH_URL = os.getenv("KONG_INTERNAL_OAUTH_URL")
+
+# Validate that required environment variables are set during deployment
+missing_vars = []
+if not BACKEND_API_URL: missing_vars.append("BACKEND_API_URL")
+if not KONG_ADMIN_URL: missing_vars.append("KONG_ADMIN_URL")
+if not KONG_INTERNAL_OAUTH_URL: missing_vars.append("KONG_INTERNAL_OAUTH_URL")
+
+if missing_vars:
+    sys.stderr.write(f"Error: Required environment variables are not set: {', '.join(missing_vars)}\n")
+    sys.exit(1)
 
 if not BACKEND_API_URL:
     sys.stderr.write("Error: Required environment variable BACKEND_API_URL is not set.\n")
     sys.exit(1)
 
 app = FastAPI(
-    title="Camera Auth Service",
-    description="A proxy service that injects an auth_code or sets a cookie.",
+    title="TS43 Auth & Token Service",
+    description="ts 43 auth to issue cookie, authcode and JWT tokwn",
     version="1.4.0" 
 )
 
@@ -70,6 +84,31 @@ def extract_eapid_from_setcookie(setcookie_header: str) -> str | None:
         print(f"Error decoding 'setcookie' header: {e}")
         return None
 
+async def get_client_secret_from_kong(client_id: str) -> str | None:
+    oauth2_url = f"{KONG_ADMIN_URL.rstrip('/')}/oauth2"
+    params = {"client_id": client_id}
+    try:
+        async with httpx.AsyncClient() as client:
+            print(f"Querying Kong Admin API: {oauth2_url} for client_id: {client_id}")
+            response = await client.get(oauth2_url, params=params, timeout=5.0)
+        
+        response.raise_for_status()
+        oauth_data = response.json()
+
+        if oauth_data.get("data") and len(oauth_data["data"]) > 0:
+            client_secret = oauth_data["data"][0].get("client_secret")
+            if client_secret:
+                print(f"Successfully retrieved client_secret for client_id: {client_id}")
+                return client_secret
+        
+        print(f"Warning: No OAuth2 credential or secret found for client_id: {client_id}")
+        return None
+    except httpx.RequestError as e:
+        print(f"Error calling Kong Admin API: {e}"); return None
+    except httpx.HTTPStatusError as e:
+        print(f"Error response from Kong Admin API: {e.response.status_code} {e.response.text}"); return None
+
+
 # --- API Endpoints ---
 
 @app.get("/healthz")
@@ -83,7 +122,6 @@ async def proxy_and_set_cookie(request: Request):
     if not eapid_header:
         return PlainTextResponse("Bad Request: Missing 'eapid' header.", status_code=400)
 
-    # ... (Rest of GET method is unchanged)
     async with httpx.AsyncClient() as client:
         try:
             url = f"{BACKEND_API_URL}{request.url.path}?{request.query_params}"
@@ -148,3 +186,35 @@ async def proxy_and_generate_authcode(request: Request):
     except json.JSONDecodeError:
         return PlainTextResponse("Bad Gateway: Upstream service returned a non-JSON response.", status_code=502)
 
+@app.get("/v2/ts43_operator_token")
+async def get_operator_token(client_id: str = Header(...)):
+    print(f"Received token request for client_id: {client_id}")
+    
+    # 1. Get the client_secret from Kong Admin API
+    client_secret = await get_client_secret_from_kong(client_id)
+    if not client_secret:
+        raise HTTPException(status_code=401, detail="Invalid client_id or client credentials not found.")
+
+    # 2. Call Kong's internal /oauth2/token endpoint
+    kong_token_url = f"{KONG_INTERNAL_OAUTH_URL.rstrip('/')}/oauth2/token"
+    kong_payload = {
+        "grant_type": "client_credentials",
+        "client_id": client_id,
+        "client_secret": client_secret,
+    }
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            print(f"Requesting access token from Kong at {kong_token_url}")
+            kong_resp = await client.post(kong_token_url, data=kong_payload, timeout=10.0)
+        
+        # Pass through Kong's response (both success and failure) to the client
+        return Response(
+            content=kong_resp.content,
+            status_code=kong_resp.status_code,
+            headers={"Content-Type": "application/json"}
+        )
+            
+    except httpx.RequestError as e:
+        print(f"Error calling Kong token endpoint: {e}")
+        raise HTTPException(status_code=503, detail="Service unavailable: Could not connect to the authentication server.")
