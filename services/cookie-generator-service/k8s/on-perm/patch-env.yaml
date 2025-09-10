@@ -12,7 +12,7 @@ spec:
           env:
             - name: BACKEND_API_URL
               value: "http://34.54.169.57:80"
-        - name: KONG_INTERNAL_OAUTH_URL
-          value: "https://kong-kong-proxy.kong.svc.cluster.local:443"
-        - name: KONG_ADMIN_URL
-          value: "https://kong-kong-admin.kong.svc.cluster.local:8444"
+            - name: KONG_INTERNAL_OAUTH_URL
+              value: "https://kong-kong-proxy.kong.svc.cluster.local:443"
+            - name: KONG_ADMIN_URL
+              value: "https://kong-kong-admin.kong.svc.cluster.local:8444"
