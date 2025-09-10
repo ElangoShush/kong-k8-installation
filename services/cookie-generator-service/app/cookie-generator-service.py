@@ -88,7 +88,8 @@ async def get_client_secret_from_kong(client_id: str) -> str | None:
     oauth2_url = f"{KONG_ADMIN_URL.rstrip('/')}/oauth2"
     params = {"client_id": client_id}
     try:
-        async with httpx.AsyncClient() as client:
+        # Disable TLS verification for internal communication with Kong Admin API
+        async with httpx.AsyncClient(verify=False) as client:
             print(f"Querying Kong Admin API: {oauth2_url} for client_id: {client_id}")
             response = await client.get(oauth2_url, params=params, timeout=5.0)
         
@@ -190,12 +191,10 @@ async def proxy_and_generate_authcode(request: Request):
 async def get_operator_token(client_id: str = Header(..., alias="client_id")):
     print(f"Received token request for client_id: {client_id}")
     
-    # 1. Get the client_secret from Kong Admin API
     client_secret = await get_client_secret_from_kong(client_id)
     if not client_secret:
         raise HTTPException(status_code=401, detail="Invalid client_id or client credentials not found.")
 
-    # 2. Call Kong's internal /oauth2/token endpoint
     kong_token_url = f"{KONG_INTERNAL_OAUTH_URL.rstrip('/')}/oauth2/token"
     kong_payload = {
         "grant_type": "client_credentials",
@@ -204,11 +203,11 @@ async def get_operator_token(client_id: str = Header(..., alias="client_id")):
     }
     
     try:
-        async with httpx.AsyncClient() as client:
+        # Disable TLS verification for internal communication with Kong OAuth endpoint
+        async with httpx.AsyncClient(verify=False) as client:
             print(f"Requesting access token from Kong at {kong_token_url}")
             kong_resp = await client.post(kong_token_url, data=kong_payload, timeout=10.0)
         
-        # Pass through Kong's response (both success and failure) to the client
         return Response(
             content=kong_resp.content,
             status_code=kong_resp.status_code,
