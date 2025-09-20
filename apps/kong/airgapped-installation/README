@@ -28,13 +28,13 @@ helm version
 
 Install KONG:
 
-helm template kong apps/kong/airgapped-installation/kong-2.37.0.tgz \
+helm template kong airgapped-installation/kong-2.37.0.tgz \
   --namespace kong \
-  --values apps/kong/airgapped-installation/kong-values.yaml > apps/kong/base/kong-rendered.yaml
+  --values airgapped-installation/kong-values.yaml > base/kong-rendered.yaml
 
 
 
-kubectl apply -n kong -k ./apps/kong/on-perm
+kubectl apply -n kong -k on-perm
 
 You should get output like this:
     # Warning: 'bases' is deprecated. Please use 'resources' instead. Run 'kustomize edit fix' to update your Kustomization automatically.
@@ -58,7 +58,7 @@ You should get output like this:
     job.batch/kong-kong-pre-upgrade-migrations created
     validatingwebhookconfiguration.admissionregistration.k8s.io/kong-kong-validations created
 
-
+curl http://192.168.1.137:32081/status
 
 
 
