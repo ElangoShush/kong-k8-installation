@@ -62,8 +62,14 @@ curl http://192.168.1.137:32081/status
 
 
 
-
-
+Deploy the API GW Shush Auth Images
+1.Copy all the images from apps/kong/airgapped-installation/image-bundles/shush-kong/per-image/ to the agnet nodes k3s/image folder 
+2. restart the k3s agent & check the status to make sure its up and running
+3. Deploy Cookie-generator-service:
+    1. services/cookie-generator-service/k8s/on-perm/patch-env.yaml
+            update BACKEND_API_URL to sherlock cluster endpoint
+    2.  services/cookie-generator-service/k8s/base/deployment.yaml 
+            update the image 
 ISSSUE:
 
 if any issues on :clear-stale-pid

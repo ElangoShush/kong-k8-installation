@@ -121,7 +121,7 @@ sudo docker buildx build \
 cd kong-k8-installation
 kubectl apply -k services/cookie-generator-service/k8s/on-perm
 
-
+kubectl -n kong get deploy,po,svc | grep cookie-generator-service
 
 # docker build and push TS43 Authe code Image to sherlock-004:
 cd kong-k8-installation/services/ts43-auth/app
@@ -171,15 +171,27 @@ kubectl -n kong get deploy,po,svc | grep jwt-issuer
 
 
 Deploy TS 43 Endpoint to KONG:
+
 # dry-run
-helm upgrade --install ts43-config ./charts/ts43-config -n kong --debug --dry-run
+helm upgrade --install ts43-config ./charts/Sherlock -n kong --debug --dry-run
 
 # apply & wait
 helm upgrade --install ts43-config ./charts/Sherlock -n kong 
 
+# If any issue like this;
+   helm upgrade --install ts43-config ./charts/Sherlock -n kong --debug --dry-run
+Error: Kubernetes cluster unreachable: Get "http://localhost:8080/version": dial tcp [::1]:8080: connect: connection refused
+    export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+    then run again helm upgrade commanf agian:
+    helm upgrade --install ts43-config ./charts/Sherlock \
+    -n kong \
+    --kubeconfig /etc/rancher/k3s/k3s.yaml \
+    --debug --dry-run
+
+
 # In the KONG UI , for gateway service and route
-  http://34.61.21.100:30516/default/services
-  http://34.61.21.100:30516/default/routes
+  curl http://34.61.21.100:32081/default/services
+  curl http://34.61.21.100:32081/default/routes
 
 
 
