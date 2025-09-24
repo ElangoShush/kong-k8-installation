@@ -1,3 +1,7 @@
 # macOS system files
 .DS_Store
 **/.DS_Store
+
+# ignore airgap image bundles
+apps/kong/airgapped-installation/image-bundles/*.tar*
+
