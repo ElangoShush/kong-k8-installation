@@ -138,11 +138,11 @@ kubectl -n kong get deploy,po,svc | grep ts43-auth
 
 
 # docker build and push Camera  Image to sherlock-004:
-cd kong-k8-installation/services/camera-auth/app
+cd services/camera-auth/app
 
 sudo docker buildx build \
   --platform linux/amd64 \
-  -t us-central1-docker.pkg.dev/sherlock-004/ts43/camera-auth:v20.2 \
+  -t us-central1-docker.pkg.dev/sherlock-004/ts43/camera-auth:v20.3 \
   --push .
 
 # Deploy Camera Image

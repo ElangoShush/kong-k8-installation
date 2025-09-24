@@ -53,4 +53,4 @@ curl --location --request POST 'https://34.61.21.100:32443/camera/token' --heade
 # Release v2.0.1
 now provides a **verified msisdn-driven flow**, Redis-backed one-time auth codes, and secure JWT token issuance with full Kong integration.
 Image : us-central1-docker.pkg.dev/sherlock-004/ts43/camera-auth
-Tag :  v20.1
+Tag :  v2.0.3

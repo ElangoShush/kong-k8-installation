@@ -148,26 +148,36 @@ def handle_authorization(
     client_id: str = Form(...),
     redirect_uri: str = Form(...),
     provision_key: str = Form(...),
-    login_hint: str = Form(...),  # I just kept it for  compatibility, but no longer used for code generation as per amy
     response_type: str = Form(...),
     scope: str = Form(None),
     authenticated_userid: str = Form(...),
-    identifier: str = Form(...),
-    carrierName: str = Form(...),
-    customerName: str = Form(...),
     ipAddress: str = Form(...),
     grant_type: str = Form(None),
-    x_correlator: str | None = Header(default=None, alias="x-correlator"),  # newly added  passthrough header
+    x_correlator: str | None = Header(default=None, alias="x-correlator"),
 ):
     try:
-        log.info(f"Received authorization request for client_id={client_id}, ipAddress={ipAddress}")
+        log.info(
+            f"Received authorization request for client_id={client_id}, "
+            f"ipAddress={ipAddress}, response_type={response_type}, grant_type={grant_type}"
+        )
+
+        # Optional sanity checks (harmless if you want to keep it loose)
+        if response_type != "code":
+            raise HTTPException(status_code=400, detail="response_type must be 'code'")
+        if grant_type and grant_type != "authorization_code":
+            raise HTTPException(status_code=400, detail="grant_type must be 'authorization_code' when provided")
 
         # --- 1) Look up the user via external auth using ONLY ipAddress
         ext_headers = {"x-correlator": x_correlator} if x_correlator else None
         ext_params = {"ipAddress": ipAddress}
         log.info(f"Calling EXTERNAL_AUTH_URL={EXTERNAL_AUTH_URL} with params={ext_params}, headers={ext_headers}")
-        external_resp = requests.get(EXTERNAL_AUTH_URL, params=ext_params, headers=ext_headers,
-                                     timeout=REQ_TIMEOUT, verify=VERIFY_TLS)
+        external_resp = requests.get(
+            EXTERNAL_AUTH_URL,
+            params=ext_params,
+            headers=ext_headers,
+            timeout=REQ_TIMEOUT,
+            verify=VERIFY_TLS
+        )
 
         if external_resp.status_code != 200:
             log.warning(f"External auth failed [{external_resp.status_code}]: {external_resp.text}")
@@ -175,11 +185,11 @@ def handle_authorization(
                 error_detail = external_resp.json()
             except requests.exceptions.JSONDecodeError:
                 error_detail = {"detail": external_resp.text or "Unknown error"}
-            raise HTTPException(status_code=external_resp.status_code,
-                                detail=error_detail.get("detail", error_detail))
+            raise HTTPException(
+                status_code=external_resp.status_code,
+                detail=error_detail.get("detail", error_detail)
+            )
 
-        # Expected sample JSON:
-        # { "identifier": "ABC12345", "msisdn": "+639171234561", "match": true }
         try:
             auth_json = external_resp.json()
         except requests.exceptions.JSONDecodeError:
@@ -205,10 +215,10 @@ def handle_authorization(
             raise HTTPException(status_code=401, detail="Invalid client_id or client credentials not found.")
         client_secret, consumer_username = consumer_details
 
-        # --- 3) Generate auth code USING msisdn from external service (not login_hint) ---
+        # --- 3) Generate auth code USING msisdn from external service ---
         custom_auth_code = generate_auth_code(msisdn_from_ext)
 
-        # --- 4) Store all context in Redis (use the resolved msisdn) ---
+        # --- 4) Store context in Redis ---
         if not store_auth_code(
             custom_auth_code,
             msisdn_from_ext,
