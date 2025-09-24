@@ -54,3 +54,39 @@ curl --location --request POST 'https://34.61.21.100:32443/camera/token' --heade
 now provides a **verified msisdn-driven flow**, Redis-backed one-time auth codes, and secure JWT token issuance with full Kong integration.
 Image : us-central1-docker.pkg.dev/sherlock-004/ts43/camera-auth
 Tag :  v2.0.3
+
+### Step 1: Authorize
+```bash
+curl --location 'https://34.61.21.100:32443/camera/authorizer' \
+--header 'Content-Type: application/x-www-form-urlencoded' \
+--header 'x-correlator: 123-456-789' \
+--data-urlencode 'response_type=code' \
+--data-urlencode 'client_id=test' \
+--data-urlencode 'redirect_uri=https://oauth.pstmn.io/v1/callback' \
+--data-urlencode 'scope=sherlockapiresource/write' \
+--data-urlencode 'provision_key=OAuth-Token-Dispenser-Key' \
+--data-urlencode 'authenticated_userid=test_id' \
+--data-urlencode 'grant_type=authorization_code' \
+--data-urlencode 'customerName=Bank1' \
+--data-urlencode 'ipAddress=192.168.0.1'
+```
+
+
+### Step 2: Exchange Code for Token
+```bash
+curl --location --request POST 'https://34.61.21.100:32443/camera/token' \
+--header 'Content-Type: application/x-www-form-urlencoded' \
+--header 'code: dG9rZW49KzE0MjUxMDAwMDAwOjE3NTg3MzgyNTcmbG9naW5faGludD0rMTQyNTEwMDAwMDA='
+```
+
+### Step 3: Verify Phone Number
+```bash
+curl --location 'https://34.61.21.100:32443/number-verification/v0/verify_phone_number' \
+--header 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJ0ZXN0LWFwcC1pc3N1ZXIiLCJsb2dpbl9oaW50IjoiKzE0MjUxMDAwMDAwIiwiaWF0IjoxNzU4NzM3OTQ3LCJleHAiOjE3NTg3NDE1NDd9.gc-UoqPaUDyYkJ4bwdPHGm7gq_wbo1YKSMFAtfz0veg' \
+--header 'customerName: Bank1' \
+--header 'x-correlator: 123-456-789' \
+--header 'Content-Type: application/json' \
+--data '{
+  "phoneNumber": "+14251000000"
+}'
+```
