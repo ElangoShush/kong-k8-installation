@@ -142,7 +142,7 @@ cd kong-k8-installation/services/camera-auth/app
 
 sudo docker buildx build \
   --platform linux/amd64 \
-  -t us-central1-docker.pkg.dev/sherlock-004/ts43/camera-auth:v20.1 \
+  -t us-central1-docker.pkg.dev/sherlock-004/ts43/camera-auth:v20.2 \
   --push .
 
 # Deploy Camera Image

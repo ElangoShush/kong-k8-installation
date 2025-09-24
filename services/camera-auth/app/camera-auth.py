@@ -229,7 +229,7 @@ def handle_authorization(
     except Exception as e:
         log.exception("An unexpected error occurred during authorization")
         raise HTTPException(status_code=500, detail="An internal server error occurred")
-s
+
 @app.post("/token")
 def handle_custom_token_exchange(code: str = Header(...)):
     if not ISSUE_JWT_URL:
