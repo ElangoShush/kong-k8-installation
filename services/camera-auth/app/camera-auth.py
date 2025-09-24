@@ -148,7 +148,7 @@ def handle_authorization(
     client_id: str = Form(...),
     redirect_uri: str = Form(...),
     provision_key: str = Form(...),
-    login_hint: str = Form(...),
+    login_hint: str = Form(...),  # I just kept it for  compatibility, but no longer used for code generation as per amy
     response_type: str = Form(...),
     scope: str = Form(None),
     authenticated_userid: str = Form(...),
@@ -156,41 +156,80 @@ def handle_authorization(
     carrierName: str = Form(...),
     customerName: str = Form(...),
     ipAddress: str = Form(...),
-    grant_type: str = Form(None)
+    grant_type: str = Form(None),
+    x_correlator: str | None = Header(default=None, alias="x-correlator"),  # newly added  passthrough header
 ):
     try:
-        log.info(f"Received authorization request for login_hint: {login_hint}, client_id: {client_id}")
-        
-        # MODIFIED: Fetch both secret and username
+        log.info(f"Received authorization request for client_id={client_id}, ipAddress={ipAddress}")
+
+        # --- 1) Look up the user via external auth using ONLY ipAddress
+        ext_headers = {"x-correlator": x_correlator} if x_correlator else None
+        ext_params = {"ipAddress": ipAddress}
+        log.info(f"Calling EXTERNAL_AUTH_URL={EXTERNAL_AUTH_URL} with params={ext_params}, headers={ext_headers}")
+        external_resp = requests.get(EXTERNAL_AUTH_URL, params=ext_params, headers=ext_headers,
+                                     timeout=REQ_TIMEOUT, verify=VERIFY_TLS)
+
+        if external_resp.status_code != 200:
+            log.warning(f"External auth failed [{external_resp.status_code}]: {external_resp.text}")
+            try:
+                error_detail = external_resp.json()
+            except requests.exceptions.JSONDecodeError:
+                error_detail = {"detail": external_resp.text or "Unknown error"}
+            raise HTTPException(status_code=external_resp.status_code,
+                                detail=error_detail.get("detail", error_detail))
+
+        # Expected sample JSON:
+        # { "identifier": "ABC12345", "msisdn": "+639171234561", "match": true }
+        try:
+            auth_json = external_resp.json()
+        except requests.exceptions.JSONDecodeError:
+            log.error("External auth returned non-JSON body")
+            raise HTTPException(status_code=502, detail="External auth returned invalid JSON")
+
+        msisdn_from_ext = auth_json.get("msisdn")
+        match = auth_json.get("match", False)
+
+        if not match:
+            log.info(f"External auth result not matched for ipAddress={ipAddress}: {auth_json}")
+            raise HTTPException(status_code=401, detail="Authentication not matched")
+
+        if not msisdn_from_ext or not isinstance(msisdn_from_ext, str):
+            log.error(f"External auth JSON missing/invalid msisdn: {auth_json}")
+            raise HTTPException(status_code=502, detail="External auth response missing msisdn")
+
+        log.info(f"External authentication successful. Resolved msisdn={msisdn_from_ext}")
+
+        # --- 2) Fetch client_secret + consumer_username from Kong Admin ---
         consumer_details = get_consumer_details_from_kong(client_id)
         if not consumer_details:
             raise HTTPException(status_code=401, detail="Invalid client_id or client credentials not found.")
         client_secret, consumer_username = consumer_details
 
-        auth_params = { "identifier": identifier, "carrierName": carrierName, "customerName": customerName, "msisdn": login_hint, "ipAddress": ipAddress }
-        external_resp = requests.get(EXTERNAL_AUTH_URL, params=auth_params, timeout=REQ_TIMEOUT, verify=VERIFY_TLS)
-        if external_resp.status_code != 200:
-            log.warning(f"External auth failed with status {external_resp.status_code}: {external_resp.text}")
-            try: error_detail = external_resp.json()
-            except requests.exceptions.JSONDecodeError: error_detail = {"detail": external_resp.text or "Unknown error"}
-            raise HTTPException(status_code=external_resp.status_code, detail=error_detail.get("detail", error_detail))
-        
-        log.info("External authentication successful.")
-        custom_auth_code = generate_auth_code(login_hint)
+        # --- 3) Generate auth code USING msisdn from external service (not login_hint) ---
+        custom_auth_code = generate_auth_code(msisdn_from_ext)
 
-        # MODIFIED: Store the consumer_username in Redis
-        if not store_auth_code(custom_auth_code, login_hint, provision_key, client_id, client_secret, consumer_username):
+        # --- 4) Store all context in Redis (use the resolved msisdn) ---
+        if not store_auth_code(
+            custom_auth_code,
+            msisdn_from_ext,
+            provision_key,
+            client_id,
+            client_secret,
+            consumer_username
+        ):
             raise HTTPException(status_code=503, detail="Failed to store authorization context. Please try again later.")
-            
+
+        # --- 5) Return redirect with the custom code ---
         final_redirect_uri = f"{redirect_uri}?code={custom_auth_code}"
-        log.info(f"Successfully generated code. Returning redirect URI: {final_redirect_uri}")
+        log.info(f"Issued auth code for consumer={consumer_username}. Redirecting to: {final_redirect_uri}")
         return JSONResponse(content={"redirect_uri": final_redirect_uri})
-        
-    except HTTPException: raise
+
+    except HTTPException:
+        raise
     except Exception as e:
-        log.exception("An unexpected error occurred during authorization"); raise HTTPException(status_code=500, detail="An internal server error occurred")
-
-
+        log.exception("An unexpected error occurred during authorization")
+        raise HTTPException(status_code=500, detail="An internal server error occurred")
+s
 @app.post("/token")
 def handle_custom_token_exchange(code: str = Header(...)):
     if not ISSUE_JWT_URL:
