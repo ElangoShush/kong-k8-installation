@@ -5,3 +5,12 @@
 # ignore airgap image bundles
 apps/kong/airgapped-installation/image-bundles/*.tar*
 
+
+# ignore airgap bundles
+apps/kong/airgapped-installation/image-bundles/
+*.tar
+*.tar.gz
+*.tgz
+*.img
+*.iso
+*.bin
