@@ -3,9 +3,9 @@ kind: Kustomization
 
 resources:
 #  This is the  path for installation folder
-#- application.yaml
+- application.yaml
 # This is the  path for airgapped-installation folder
-- ../airgapped-installation/kong-rendered.yaml
+# - ../airgapped-installation/kong-rendered.yaml
 
 secretGenerator:
   - name: kong-enterprise-license
