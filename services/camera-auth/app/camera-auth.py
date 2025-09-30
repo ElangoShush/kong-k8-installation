@@ -5,15 +5,43 @@ import time
 import base64
 import json
 from urllib.parse import urlparse, parse_qs
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, Tuple, Optional
 
 import requests
 import redis
-from fastapi import FastAPI, Response, Form, HTTPException, Header
+from fastapi import FastAPI, Response, Form, HTTPException, Header, Request
 from fastapi.responses import JSONResponse
 from typing import Optional
 from fastapi import Form, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
+
+# --- Forwarded Headers Utilities ---
+from typing import Optional, Dict
+from fastapi import Request
+
+def _build_outbound_forward_headers(req: Request, base_headers: Optional[Dict[str, str]] = None) -> Dict[str, str]:
+    base = dict(base_headers or {})
+    inbound_xff = req.headers.get("x-forwarded-for", "")
+    x_real_ip_in = req.headers.get("x-real-ip", "")
+
+    client_ip = (req.client.host if getattr(req, "client", None) else None)
+    append_ip = client_ip or x_real_ip_in or None
+
+    if inbound_xff and append_ip:
+        outbound_xff = f"{inbound_xff}, {append_ip}"
+    elif inbound_xff:
+        outbound_xff = inbound_xff
+    elif append_ip:
+        outbound_xff = append_ip
+    else:
+        outbound_xff = ""
+
+    if outbound_xff:
+        base["X-Forwarded-For"] = outbound_xff
+    if append_ip:
+        base["X-Real-IP"] = append_ip
+
+    return base
 
 # --- Configuration and Logging ---
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
@@ -148,6 +176,7 @@ def healthz():
 
 @app.post("/authorizer")
 def handle_authorization(
+    request: Request,
     client_id: str = Form(...),
     redirect_uri: str = Form(...),
     provision_key: str = Form(...),
@@ -171,7 +200,8 @@ def handle_authorization(
             raise HTTPException(status_code=400, detail="grant_type must be 'authorization_code' when provided")
 
         # --- 1) Look up the user via external auth using ONLY ipAddress
-        ext_headers = {"x-correlator": x_correlator} if x_correlator else None
+        #ext_headers = {"x-correlator": x_correlator} if x_correlator else None
+        ext_headers = _build_outbound_forward_headers(request, {"x-correlator": x_correlator} if x_correlator else {})
         ext_params = {}
         if ipAddress:
             ext_params["ipAddress"] = ipAddress
