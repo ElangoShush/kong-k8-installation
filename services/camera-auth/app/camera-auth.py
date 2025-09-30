@@ -11,6 +11,9 @@ import requests
 import redis
 from fastapi import FastAPI, Response, Form, HTTPException, Header
 from fastapi.responses import JSONResponse
+from typing import Optional
+from fastapi import Form, Header, HTTPException, Request
+from fastapi.responses import JSONResponse
 
 # --- Configuration and Logging ---
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
@@ -151,7 +154,7 @@ def handle_authorization(
     response_type: str = Form(...),
     scope: str = Form(None),
     authenticated_userid: str = Form(...),
-    ipAddress: str = Form(...),
+    ipAddress: Optional[str] = Form(None),  # <-- Made it optional 
     grant_type: str = Form(None),
     x_correlator: str | None = Header(default=None, alias="x-correlator"),
 ):
@@ -160,8 +163,8 @@ def handle_authorization(
             f"Received authorization request for client_id={client_id}, "
             f"ipAddress={ipAddress}, response_type={response_type}, grant_type={grant_type}"
         )
-
-        # Optional sanity checks (harmless if you want to keep it loose)
+        
+        # Optional sanity checks 
         if response_type != "code":
             raise HTTPException(status_code=400, detail="response_type must be 'code'")
         if grant_type and grant_type != "authorization_code":
@@ -169,11 +172,14 @@ def handle_authorization(
 
         # --- 1) Look up the user via external auth using ONLY ipAddress
         ext_headers = {"x-correlator": x_correlator} if x_correlator else None
-        ext_params = {"ipAddress": ipAddress}
-        log.info(f"Calling EXTERNAL_AUTH_URL={EXTERNAL_AUTH_URL} with params={ext_params}, headers={ext_headers}")
+        ext_params = {}
+        if ipAddress:
+            ext_params["ipAddress"] = ipAddress
+
+        log.info(f"Calling EXTERNAL_AUTH_URL={EXTERNAL_AUTH_URL} params={ext_params} headers={ext_headers}")
         external_resp = requests.get(
             EXTERNAL_AUTH_URL,
-            params=ext_params,
+            params=ext_params if ext_params else None,
             headers=ext_headers,
             timeout=REQ_TIMEOUT,
             verify=VERIFY_TLS
@@ -218,7 +224,6 @@ def handle_authorization(
         # --- 3) Generate auth code USING msisdn from external service ---
         custom_auth_code = generate_auth_code(msisdn_from_ext)
 
-        # --- 4) Store context in Redis ---
         if not store_auth_code(
             custom_auth_code,
             msisdn_from_ext,
