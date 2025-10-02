@@ -10,7 +10,7 @@ services:
   # This route exposes your service to the outside world via Kong.
     - name: camera-authorizer-route
       paths:
-        - /camera/authorizer
+        - /camara/authorizer
       strip_path: true
       tags: [auth, camera]
       # This plugin is added to set the correct upstream path.
@@ -22,7 +22,7 @@ services:
               uri: "/authorizer"
     - name: camera-token-route
       paths:
-        - /camera/token
+        - /camara/token
       strip_path: true
       tags: [auth, camera]
       # This plugin is added to set the correct upstream path.
