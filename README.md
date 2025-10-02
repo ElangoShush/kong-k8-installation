@@ -202,11 +202,22 @@ Deploy TS 43 Endpoint to KONG:
 # dry-run
 ```bash
 helm upgrade --install ts43-config ./charts/ts43-config -n kong --debug --dry-run
+
+(or)
+helm upgrade --install ts43-config ./charts/Sherlock \
+    -n kong \
+    --debug --dry-run \
+    --kubeconfig /etc/rancher/k3s/k3s.yaml
   ```
 # apply & wait
 ```bash
 helm upgrade --install ts43-config ./charts/Sherlock -n kong 
-  ```
+
+(or)
+helm upgrade --install ts43-config ./charts/Sherlock \
+    -n kong \
+    --kubeconfig /etc/rancher/k3s/k3s.yaml
+```
 # In the KONG UI , for gateway service and route
 ```bash
   Example ( replace the host to yours)
