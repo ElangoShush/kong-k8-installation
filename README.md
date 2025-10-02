@@ -164,7 +164,7 @@ kubectl -n kong get deploy,po,svc | grep ts43-auth
 cd services/camera-auth/app
 sudo docker buildx build \
   --platform linux/amd64 \
-  -t us-central1-docker.pkg.dev/sherlock-004/ts43/camera-auth:v20.5 \
+  -t us-central1-docker.pkg.dev/sherlock-004/ts43/camera-auth:v20.5.2 \
   --push .
 ```
 

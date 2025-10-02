@@ -90,3 +90,6 @@ curl --location 'https://34.61.21.100:32443/number-verification/v0/verify_phone_
   "phoneNumber": "+14251000000"
 }'
 ```
+
+### camera auth v20.5.2
+  Added loging info
