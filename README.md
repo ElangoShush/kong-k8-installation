@@ -18,6 +18,10 @@ kubectl configured for your cluster (K3s recommended).
 
 Rancher Helm Controller CRDs available (helm.cattle.io/v1).
 
+### Prereuiest:
+1. Install helm
+   dnf install helm
+
 Namespace:
 
 kubectl create ns kong
@@ -64,8 +68,6 @@ kubectl -n kong create secret generic kong-enterprise-license \
 
 Add the change the helm configuration here( if you customize from standard deployemnt, if there is no changes from standard change you can ignore it ):
   1. pg_host
-  2. admin_gui_url
-  3. admin_gui_api_url
 
 Update below values with work node ip:
   1. admin_gui_url
@@ -164,7 +166,7 @@ kubectl -n kong get deploy,po,svc | grep ts43-auth
 cd services/camera-auth/app
 sudo docker buildx build \
   --platform linux/amd64 \
-  -t us-central1-docker.pkg.dev/sherlock-004/ts43/camera-auth:v20.5.2 \
+  -t us-central1-docker.pkg.dev/sherlock-004/ts43/camera-auth:v20.5.3 \
   --push .
 ```
 
@@ -201,7 +203,7 @@ kubectl -n kong get deploy,po,svc | grep jwt-issuer
 Deploy TS 43 Endpoint to KONG:
 # dry-run
 ```bash
-helm upgrade --install ts43-config ./charts/ts43-config -n kong --debug --dry-run
+helm upgrade --install ts43-config ./charts/Sherlock -n kong --debug --dry-run
 
 (or)
 helm upgrade --install ts43-config ./charts/Sherlock \
@@ -225,8 +227,10 @@ helm upgrade --install ts43-config ./charts/Sherlock \
   http://34.61.21.100:30516/default/routes
   ```
 
-
-
+# CURL testing in the Following Documentation
+```bash
+  test/testDoc-APIGW.txt
+  ```
 
 # TOOLS:
 1. Kong runtime log:
